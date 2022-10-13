@@ -23,6 +23,7 @@
 #include "mutex.h"
 #include "periph/adc.h"
 #include "periph_conf.h"
+#include "periph/cpu_dma.h"
 #include "ztimer.h"
 #include "periph/vbat.h"
 
@@ -230,3 +231,111 @@ int32_t adc_sample(adc_t line, adc_res_t res)
 
     return sample;
 }
+
+#ifdef MODULE_PERIPH_ADC_BURST
+int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    int result;
+    dma_t dma = adc_config[line].dma;
+    int dma_chan = adc_config[line].dma_chan;
+    volatile void *periph_addr = &(dev(line)->DR);
+    int dma_size = DMA_DATA_WIDTH_BYTE;
+
+    /* Check if resolution is applicable */
+    if (res & 0x3) {
+        return -1;
+    }
+
+    /* Calcualte the size of each DMA transfer */
+    switch (res)
+    {
+        case ADC_RES_6BIT:
+        case ADC_RES_8BIT:
+        dma_size = DMA_DATA_WIDTH_BYTE;
+        break;
+
+        case ADC_RES_10BIT:
+        case ADC_RES_12BIT:
+        case ADC_RES_14BIT:
+        case ADC_RES_16BIT:
+        dma_size = DMA_DATA_WIDTH_HALF_WORD;
+        break;
+    }
+
+    /* Lock and power on the ADC device */
+    prep(line);
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_enable();
+    }
+
+    /* Set resolution */
+    dev(line)->CFGR &= ~ADC_CFGR_RES;
+    dev(line)->CFGR |= res;
+
+    /* Specify channel for regular conversion */
+    dev(line)->SQR1 = adc_config[line].chan << ADC_SQR1_SQ1_Pos;
+
+    /* Set sample trigger source */
+    dev(line)->CFGR &= ~ADC_CFGR_EXTSEL;
+    dev(line)->CFGR |= adc_trg << ADC_CFGR_EXTSEL_Pos;
+
+    /* Enable external trigger, and trigger on its rising edge */
+    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
+    dev(line)->CFGR |= 1 << ADC_CFGR_EXTEN_Pos;
+
+    /* Enable ADC to DMA */
+    dev(line)->CFGR |= ADC_CFGR_DMAEN;
+    //dev(line)->CFGR |= ADC_CFGR_DMACFG; // DMA circular mode
+
+    dma_acquire(dma);
+
+    /* Get DMA ready to receive data from ADC */
+    result = dma_configure(
+        dma, dma_chan, periph_addr, buf, count,
+        DMA_PERIPH_TO_MEM,
+        dma_size | DMA_INC_DST_ADDR
+        );
+    if (result < 0)
+    {
+        // release locks and resources held
+        dma_release(dma);
+        done(line);
+
+        return -1;
+    }
+
+    dma_start(dma);
+
+    /* Enable conversions */
+    dev(line)->CR |= ADC_CR_ADSTART;
+
+    return 0;
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+void adc_sample_burst_end(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+    dma_wait(dma);
+    dma_stop(dma);
+    dma_release(dma);
+
+    /* Disable ADC to DMA */
+    dev(line)->CFGR &= ~ADC_CFGR_DMAEN;
+
+    /* Disable external triggering of ADC */
+    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_disable();
+    }
+
+    /* Power off and unlock device again */
+    done(line);
+}
+#endif /* MODULE_PERIPH_ADC_BURST */

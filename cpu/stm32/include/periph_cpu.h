@@ -96,6 +96,10 @@ typedef struct {
     uint8_t dev;            /**< ADCx - 1 device used for the channel */
 #endif
     uint8_t chan;           /**< CPU ADC channel connected to the pin */
+#ifdef MODULE_PERIPH_DMA
+    dma_t dma;
+    int dma_chan;
+#endif
 } adc_conf_t;
 
 /**
