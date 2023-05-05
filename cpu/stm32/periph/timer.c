@@ -126,6 +126,10 @@ int timer_init(tim_t tim, uint32_t freq, timer_cb_t cb, void *arg)
     /* generate an update event to apply our configuration */
     dev(tim)->EGR = TIM_EGR_UG;
 
+    /* set master mode selection */
+    dev(tim)->CR2 &= ~TIM_CR2_MMS;
+    dev(tim)->CR2 |= timer_config[tim].mms << TIM_CR2_MMS_Pos;
+
     /* enable the timer's interrupt */
     NVIC_EnableIRQ(timer_config[tim].irqn);
     /* reset the counter and start the timer */
