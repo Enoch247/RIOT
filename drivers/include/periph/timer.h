@@ -102,6 +102,17 @@ typedef uint_fast8_t tim_t;
 #endif
 
 /**
+ * @brief   Do not enable this channel's interrupts.
+ *
+ * When set, the timer cannnel's interrupt will be disabled after a call to
+ * timer_set_periodic(). This is useful when using a timer to trigger other
+ * peripherals via hardware interconnects without the use of software.
+ */
+#ifndef TIM_FLAG_NO_IRQ
+#define TIM_FLAG_NO_IRQ         (0x08)
+#endif
+
+/**
  * @brief   Signature of event callback functions triggered from interrupts
  *
  * @param[in] arg       optional context for the callback

@@ -242,11 +242,18 @@ int timer_set_periodic(tim_t tim, int channel, unsigned int value, uint8_t flags
 
     TIM_CHAN(tim, channel) = value;
 
-    /* clear spurious IRQs */
-    dev(tim)->SR &= ~(TIM_SR_CC1IF << channel);
+    /* enable IRQ as requested */
+    if (flags & TIM_FLAG_NO_IRQ) {
+        /* disable IRQ */
+        dev(tim)->DIER &= ~(TIM_DIER_CC1IE << channel);
+    }
+    else {
+        /* clear spurious IRQs */
+        dev(tim)->SR &= ~(TIM_SR_CC1IF << channel);
 
-    /* enable IRQ */
-    dev(tim)->DIER |= (TIM_DIER_CC1IE << channel);
+        /* enable IRQ */
+        dev(tim)->DIER |= (TIM_DIER_CC1IE << channel);
+    }
 
     if (flags & TIM_FLAG_RESET_ON_MATCH) {
         dev(tim)->ARR = value;
