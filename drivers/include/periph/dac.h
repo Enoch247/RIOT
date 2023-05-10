@@ -129,6 +129,31 @@ void dac_poweron(dac_t line);
  */
 void dac_poweroff(dac_t line);
 
+/**
+ * @breif Output a repeating waveform on DAC line.
+ *
+ * This call will setup the DAC to output a continuously repeating signal. It
+ * does not block. The DAC will continue to output the signal until
+ * `dac_wave_end()` is called. @param buf, must remain valid until the waveform
+ * is stopped.
+ *
+ * @param[in] line      DAC line to set
+ * @param[in] buf       pointer to buffer containing waveforms samples
+ * @param[in] count     number of samples in buffer
+ * @param[in] trigger   DAC update trigger source
+ *
+ * @retval              0 on success
+ * @retval              -1 on failure
+ */
+int dac_set_wave(dac_t line, const uint16_t* buf, size_t count, int trigger);
+
+/**
+ * @breif Stop output of waveform on DAC line.
+ *
+ * @param[in] line      DAC line to end waveform on
+ */
+void dac_set_wave_end(dac_t line);
+
 #ifdef __cplusplus
 }
 #endif

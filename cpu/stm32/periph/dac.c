@@ -23,7 +23,13 @@
 
 #include "cpu.h"
 #include "assert.h"
+#include "periph/cpu_dma.h"
 #include "periph/dac.h"
+
+#define DAC_CR_DMAENx(X)    ( ( (X) % 2 == 0 ) ? DAC_CR_DMAEN1      : DAC_CR_DMAEN2     )
+#define DAC_CR_TSELx(X)     ( ( (X) % 2 == 0 ) ? DAC_CR_TSEL1       : DAC_CR_TSEL2      )
+#define DAC_CR_TSELx_Pos(X) ( ( (X) % 2 == 0 ) ? DAC_CR_TSEL1_Pos   : DAC_CR_TSEL2_Pos  )
+#define DAC_CR_TENx(X)      ( ( (X) % 2 == 0 ) ? DAC_CR_TEN1        : DAC_CR_TEN2       )
 
 /* DAC channel enable bits */
 #ifdef DAC_CR_EN2
@@ -54,6 +60,22 @@ static inline DAC_TypeDef *dev(dac_t line)
     return DAC;
 #endif
 }
+
+#ifdef MODULE_PERIPH_DAC_WAVE
+static volatile uint32_t* data_holding_addr(dac_t line)
+{
+    #ifdef DAC_DHR12R2_DACC2DHR
+    if (dac_config[line].chan & 0x01) {
+        return &(dev(line)->DHR12L2);
+    }
+    else {
+        return &(dev(line)->DHR12L1);
+    }
+#else
+    return &(dev(line)->DHR12L1);
+#endif
+}
+#endif /* MODULE_PERIPH_DAC_WAVE */
 
 int8_t dac_init(dac_t line)
 {
@@ -86,6 +108,61 @@ void dac_set(dac_t line, uint16_t value)
     dev(line)->DHR12L1 = value;
 #endif
 }
+
+#ifdef MODULE_PERIPH_DAC_WAVE
+int dac_set_wave(dac_t line, const uint16_t *buf, size_t count, int trigger)
+{
+    int result;
+    dma_t dma = dac_config[line].dma;
+    int dma_chan = dac_config[line].dma_chan;
+    volatile void *periph_addr = data_holding_addr(line);
+
+    dma_acquire(dma);
+
+    /* get DMA ready to send updates to DAC */
+    result = dma_configure(
+        dma, dma_chan, buf, periph_addr, count,
+        DMA_MEM_TO_PERIPH,
+        DMA_DATA_WIDTH_HALF_WORD | DMA_INC_SRC_ADDR | DMA_CIRCULAR
+        );
+    if (result < 0) {
+        /* release locks and resources held */
+        dma_release(dma);
+
+        return -1;
+    }
+
+    /* enable DMA requests */
+    dma_start(dma);
+    dev(line)->CR |= DAC_CR_DMAENx(line);
+
+    /* set trigger source */
+    dev(line)->CR &= ~DAC_CR_TSELx(line);
+    dev(line)->CR |= trigger << DAC_CR_TSELx_Pos(line);
+
+    /* enable trigger */
+    dev(line)->CR |= DAC_CR_TENx(line);
+
+    //TODO: enable data underflow error IRQ?
+    //dev(line)->SR |= DAC_SR_DMAUDRx(line);
+
+    return 0;
+}
+#endif /* MODULE_PERIPH_DAC_WAVE */
+
+#ifdef MODULE_PERIPH_DAC_WAVE
+void dac_set_wave_end(dac_t line)
+{
+    dma_t dma = dac_config[line].dma;
+
+    /* disable trigger */
+    dev(line)->CR &= ~DAC_CR_TENx(line);
+
+    /* release DMA */
+    dma_stop(dma);
+    dma_release(dma);
+}
+#endif /* MODULE_PERIPH_DAC_WAVE */
 
 void dac_poweron(dac_t line)
 {
