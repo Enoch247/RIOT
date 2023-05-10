@@ -113,6 +113,19 @@ typedef enum {
 #define DMA_DATA_WIDTH_WORD      (0x02) /**< Word width (4 bytes)*/
 /** @} */
 
+/**
+ * @brief       Use memory buffer given to DMA as a circular buffer.
+ *
+ * When this flag is present in the flags arg of calls to `dma_configure()`, the
+ * DMA transfer will loop back to the starting address when the end of the given
+ * memory buffer is hit. The memory buffer will act as a ring buffer.
+ *
+ * When this flag is used, `dma_wait()` should not be called to end DMA, as the
+ * DMA transfer will never finish. Instead call `dma_stop()` followed by
+ * `dma_release()` to end the transfer.
+ */
+#define DMA_CIRCULAR                (0x10)
+
 #ifdef MODULE_PERIPH_DMA
 /**
  * @brief   DMA stream not defined

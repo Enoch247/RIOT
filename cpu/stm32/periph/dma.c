@@ -372,9 +372,7 @@ void dma_setup(dma_t dma, int chan, void *periph_addr, dma_mode_t mode,
                            (width << DMA_SxCR_MSIZE_Pos) |
                            (width << DMA_SxCR_PSIZE_Pos) |
                            (inc_periph << DMA_SxCR_PINC_Pos) |
-                           (mode & 3) << DMA_SxCR_DIR_Pos |
-                           DMA_SxCR_TCIE |
-                           DMA_SxCR_TEIE;
+                           (mode & 3) << DMA_SxCR_DIR_Pos;
     /* Configure FIFO */
     stream->CONTROL_REG  = cr_settings;
 #else
@@ -389,31 +387,45 @@ void dma_setup(dma_t dma, int chan, void *periph_addr, dma_mode_t mode,
                        (width << DMA_CCR_PSIZE_Pos) |
                        (inc_periph << DMA_CCR_PINC_Pos) |
                        (mode & 1) << DMA_CCR_DIR_Pos |
-                       ((mode & 2) >> 1) << DMA_CCR_MEM2MEM_Pos |
-                       DMA_CCR_TCIE |
-                       DMA_CCR_TEIE;
+                       ((mode & 2) >> 1) << DMA_CCR_MEM2MEM_Pos;
     stream->CONTROL_REG = ctr_reg;
 #endif
     stream->PERIPH_ADDR = (uint32_t)periph_addr;
 }
 
-void dma_prepare(dma_t dma, void *mem, size_t len, bool incr_mem)
+static void _dma_prepare(dma_t dma, void *mem, size_t len, bool incr_mem,
+                         bool circ)
 {
     STM32_DMA_Stream_Type *stream = dma_ctx[dma].stream;
     uint32_t ctr_reg = stream->CONTROL_REG;
+    const bool transfer_complete_isr = !circ;
+    const bool transfer_error_isr = !circ;
 
 #ifdef DMA_SxCR_MINC
     stream->CONTROL_REG = (ctr_reg & ~(DMA_SxCR_MINC)) |
-                          (incr_mem << DMA_SxCR_MINC_Pos);
+                          (incr_mem << DMA_SxCR_MINC_Pos) |
+                          (circ ? DMA_SxCR_CIRC : 0) |
+                          (transfer_complete_isr ? DMA_SxCR_TCIE : 0) |
+                          (transfer_error_isr ? DMA_SxCR_TEIE : 0);
 #else
     stream->CONTROL_REG = (ctr_reg & ~(DMA_CCR_MINC)) |
-                          (incr_mem << DMA_CCR_MINC_Pos);
+                          (incr_mem << DMA_CCR_MINC_Pos) |
+                          (circ ? DMA_CCR_CIRC : 0) |
+                          (transfer_complete_isr ? DMA_CCR_TCIE : 0) |
+                          (transfer_error_isr ? DMA_CCR_TEIE : 0);
 #endif
     stream->MEM_ADDR = (uint32_t)mem;
 
     /* Set length */
     stream->NDTR_REG = len;
     dma_ctx[dma].len = len;
+
+    dma_clear_all_flags(dma);
+}
+
+void dma_prepare(dma_t dma, void *mem, size_t len, bool incr_mem)
+{
+    _dma_prepare(dma, mem, len, incr_mem, false);
 }
 
 void dma_setup_ext(dma_t dma, dma_burst_t pburst, dma_burst_t mburst,
@@ -520,9 +532,10 @@ int dma_configure(dma_t dma, int chan, const volatile void *src, volatile void *
     }
 
     uint32_t width = (flags & DMA_DATA_WIDTH_MASK) >> DMA_DATA_WIDTH_SHIFT;
+    bool circ = (flags & DMA_CIRCULAR);
 
     dma_setup(dma, chan, periph_addr, mode, width, inc_periph);
-    dma_prepare(dma, mem_addr, len, inc_mem);
+    _dma_prepare(dma, mem_addr, len, inc_mem, circ);
 
     return 0;
 }
