@@ -138,8 +138,8 @@ int32_t adc_sample(adc_t line, adc_res_t res);
  *
  * @param[in]  line         line to sample
  * @param[in]  res          resolution to use for conversion
- * @param[out] buf          buffer to place resuts into
- * @param[in]  count        number of samples to caputure
+ * @param[out] buf          buffer to place results into
+ * @param[in]  count        number of samples to capture
  * @param[in]  adc_trg      trigger source for ADC sampling
  *
  * @retval                  0 on success

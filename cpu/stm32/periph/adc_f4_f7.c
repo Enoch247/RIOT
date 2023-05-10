@@ -23,6 +23,7 @@
 #include "mutex.h"
 #include "periph/adc.h"
 #include "periph_conf.h"
+#include "periph/cpu_dma.h"
 #include "periph/vbat.h"
 
 /**
@@ -145,3 +146,105 @@ int32_t adc_sample(adc_t line, adc_res_t res)
 
     return sample;
 }
+
+#ifdef MODULE_PERIPH_ADC_BURST
+int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    int result;
+    dma_t dma = adc_config[line].dma;
+    int dma_chan = adc_config[line].dma_chan;
+    volatile void *periph_addr = &(dev(line)->DR);
+    int dma_size = DMA_DATA_WIDTH_BYTE;
+
+    /* check if resolution is applicable */
+    if (res & 0x3) {
+        return -1;
+    }
+
+    /* calcualte the size of each DMA transfer */
+    switch (res)
+    {
+        case ADC_RES_6BIT:
+        case ADC_RES_8BIT:
+        dma_size = DMA_DATA_WIDTH_BYTE;
+        break;
+
+        case ADC_RES_10BIT:
+        case ADC_RES_12BIT:
+        case ADC_RES_14BIT:
+        case ADC_RES_16BIT:
+        dma_size = DMA_DATA_WIDTH_HALF_WORD;
+        break;
+    }
+
+    /* lock and power on the ADC device */
+    prep(line);
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_enable();
+    }
+
+    /* set resolution and conversion channel */
+    dev(line)->CR1 = res;
+    dev(line)->SQR3 = adc_config[line].chan;
+
+    dma_acquire(dma);
+
+    /* get DMA ready to receive data from ADC */
+    result = dma_configure(
+        dma, dma_chan, periph_addr, buf, count,
+        DMA_PERIPH_TO_MEM,
+        dma_size | DMA_INC_DST_ADDR
+        );
+    if (result < 0)
+    {
+        // release locks and resources held
+        dma_release(dma);
+        done(line);
+
+        return -1;
+    }
+
+    dma_start(dma);
+
+    /* enable ADC to DMA */
+    dev(line)->CR2 |= ADC_CR2_DMA;
+    //dev(line)->CR2 |= ADC_CR2_DDS; // DMA circular mode
+
+    /* set sample trigger source */
+    dev(line)->CR2 &= ~ADC_CR2_EXTSEL;
+    dev(line)->CR2 |= adc_trg << ADC_CR2_EXTSEL_Pos;
+
+    /* enable external trigger, and trigger on its rising edge */
+    dev(line)->CR2 &= ~ADC_CR2_EXTEN;
+    dev(line)->CR2 |= 1 << ADC_CR2_EXTEN_Pos;
+
+    return 0;
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+void adc_sample_burst_end(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+    dma_wait(dma);
+    dma_stop(dma);
+    dma_release(dma);
+
+    /* disable ADC to DMA */
+    dev(line)->CR2 &= ~ADC_CR2_DMA;
+
+    /* disable external triggering of ADC */
+    dev(line)->CR2 &= ~ADC_CR2_EXTEN;
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_disable();
+    }
+
+    /* power off and unlock device again */
+    done(line);
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
