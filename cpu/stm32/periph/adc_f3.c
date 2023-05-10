@@ -278,18 +278,6 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
     /* Specify channel for regular conversion */
     dev(line)->SQR1 = adc_config[line].chan << ADC_SQR1_SQ1_Pos;
 
-    /* Set sample trigger source */
-    dev(line)->CFGR &= ~ADC_CFGR_EXTSEL;
-    dev(line)->CFGR |= adc_trg << ADC_CFGR_EXTSEL_Pos;
-
-    /* Enable external trigger, and trigger on its rising edge */
-    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
-    dev(line)->CFGR |= 1 << ADC_CFGR_EXTEN_Pos;
-
-    /* Enable ADC to DMA */
-    dev(line)->CFGR |= ADC_CFGR_DMAEN;
-    //dev(line)->CFGR |= ADC_CFGR_DMACFG; // DMA circular mode
-
     dma_acquire(dma);
 
     /* Get DMA ready to receive data from ADC */
@@ -309,6 +297,18 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
 
     dma_start(dma);
 
+    /* Enable ADC to DMA */
+    dev(line)->CFGR |= ADC_CFGR_DMAEN;
+    //dev(line)->CFGR |= ADC_CFGR_DMACFG; // DMA circular mode
+
+    /* Set sample trigger source */
+    dev(line)->CFGR &= ~ADC_CFGR_EXTSEL;
+    dev(line)->CFGR |= adc_trg << ADC_CFGR_EXTSEL_Pos;
+
+    /* Enable external trigger, and trigger on its rising edge */
+    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
+    dev(line)->CFGR |= 1 << ADC_CFGR_EXTEN_Pos;
+
     /* Enable conversions */
     dev(line)->CR |= ADC_CR_ADSTART;
 
@@ -324,11 +324,11 @@ void adc_sample_burst_end(adc_t line)
     dma_stop(dma);
     dma_release(dma);
 
-    /* Disable ADC to DMA */
-    dev(line)->CFGR &= ~ADC_CFGR_DMAEN;
-
     /* Disable external triggering of ADC */
     dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
+
+    /* Disable ADC to DMA */
+    dev(line)->CFGR &= ~ADC_CFGR_DMAEN;
 
     /* check if this is the VBAT line */
     if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {

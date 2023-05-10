@@ -233,11 +233,11 @@ void adc_sample_burst_end(adc_t line)
     dma_stop(dma);
     dma_release(dma);
 
-    /* disable ADC to DMA */
-    dev(line)->CR2 &= ~ADC_CR2_DMA;
-
     /* disable external triggering of ADC */
     dev(line)->CR2 &= ~ADC_CR2_EXTEN;
+
+    /* disable ADC to DMA */
+    dev(line)->CR2 &= ~ADC_CR2_DMA;
 
     /* check if this is the VBAT line */
     if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
