@@ -37,7 +37,7 @@
  * @brief   Maximum sampling time for each channel (480 cycles)
  *          T_CONV[µs] = (RESOLUTION[bits] + SMP[cycles]) / CLOCK_SPEED[MHz]
  */
-#define MAX_ADC_SMP             (7u)
+#define MAX_ADC_SMP             (1u)
 
 /**
  * @brief   Default VBAT undefined value
