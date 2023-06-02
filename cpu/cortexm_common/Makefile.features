@@ -13,6 +13,8 @@ FEATURES_PROVIDED += picolibc
 FEATURES_PROVIDED += ssp
 
 # cortex-m33, cortex-m4f and cortex-m7 provide FPU support
+#FIXME: not all fpu is optional in m33, mf, and m7
+#       see: https://en.wikipedia.org/wiki/ARM_Cortex-M
 ifneq (,$(filter $(CPU_CORE),cortex-m33 cortex-m4f cortex-m7))
   FEATURES_PROVIDED += cortexm_fpu
 endif
