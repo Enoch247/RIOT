@@ -124,6 +124,7 @@ int dac_set_wave(dac_t line, const uint16_t *buf, size_t count, int trigger)
         dma, dma_chan, buf, periph_addr, count,
         DMA_MEM_TO_PERIPH,
         DMA_DATA_WIDTH_HALF_WORD | DMA_INC_SRC_ADDR | DMA_CIRCULAR
+        | DMA_WITHOUT_WAIT
         );
     if (result < 0) {
         /* release locks and resources held */
