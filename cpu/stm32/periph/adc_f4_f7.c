@@ -26,6 +26,10 @@
 #include "periph/cpu_dma.h"
 #include "periph/vbat.h"
 
+#if defined(MODULE_PERIPH_ADC_BURST) || defined(MODULE_PERIPH_ADC_CONT)
+#define ADC_DMA
+#endif
+
 /**
  * @brief   Maximum allowed ADC clock speed
  */
@@ -149,9 +153,9 @@ int32_t adc_sample(adc_t line, adc_res_t res)
     return sample;
 }
 
-#ifdef MODULE_PERIPH_ADC_BURST
-int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
-    int adc_trg)
+#ifdef ADC_DMA
+static int _sample_dma(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg, bool circ)
 {
     int result;
     dma_t dma = adc_config[line].dma;
@@ -198,7 +202,9 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
     result = dma_configure(
         dma, dma_chan, periph_addr, buf, count,
         DMA_PERIPH_TO_MEM,
-        dma_size | DMA_INC_DST_ADDR
+        dma_size | DMA_INC_DST_ADDR |
+        ((circ)? DMA_CIRCULAR : 0) |
+        ((circ)? DMA_WITH_WAIT_HALF : 0)
         );
     if (result < 0)
     {
@@ -213,7 +219,11 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
 
     /* enable ADC to DMA */
     dev(line)->CR2 |= ADC_CR2_DMA;
-    //dev(line)->CR2 |= ADC_CR2_DDS; // DMA circular mode
+
+    if (circ) {
+        /* enable DMA circular mode */
+        dev(line)->CR2 |= ADC_CR2_DDS;
+    }
 
     /* set sample trigger source */
     dev(line)->CR2 &= ~ADC_CR2_EXTSEL;
@@ -225,21 +235,21 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
 
     return 0;
 }
-#endif /* MODULE_PERIPH_ADC_BURST */
+#endif /* ADC_DMA */
 
-#ifdef MODULE_PERIPH_ADC_BURST
-void adc_sample_burst_end(adc_t line)
+#ifdef ADC_DMA
+static void _sample_dma_end(adc_t line)
 {
     dma_t dma = adc_config[line].dma;
-    dma_wait(dma);
-    dma_stop(dma);
-    dma_release(dma);
 
     /* disable external triggering of ADC */
     dev(line)->CR2 &= ~ADC_CR2_EXTEN;
 
     /* disable ADC to DMA */
     dev(line)->CR2 &= ~ADC_CR2_DMA;
+
+    dma_stop(dma);
+    dma_release(dma);
 
     /* check if this is the VBAT line */
     if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
@@ -249,4 +259,55 @@ void adc_sample_burst_end(adc_t line)
     /* power off and unlock device again */
     done(line);
 }
+#endif /* ADC_DMA */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    return _sample_dma(line, res, buf, count, adc_trg, false);
+}
 #endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+void adc_sample_burst_end(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+    dma_wait(dma);
+
+    _sample_dma_end(line);
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+int adc_sample_cont(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    return _sample_dma(line, res, buf, count, adc_trg, true);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_end(adc_t line)
+{
+    _sample_dma_end(line);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_wait(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+
+    dma_wait(dma);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_wait_half(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+
+    dma_wait_half(dma);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */

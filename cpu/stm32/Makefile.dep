@@ -98,6 +98,11 @@ ifneq (,$(filter periph_sdmmc,$(FEATURES_USED)))
   FEATURES_OPTIONAL += periph_dma
 endif
 
+ifneq (,$(filter periph_adc_cont,$(USEMODULE)))
+  FEATURES_REQUIRED += periph_adc
+  FEATURES_REQUIRED += periph_dma
+endif
+
 ifneq (,$(filter periph_dac_wave,$(USEMODULE)))
   FEATURES_REQUIRED += periph_dac
   FEATURES_REQUIRED += periph_dma
