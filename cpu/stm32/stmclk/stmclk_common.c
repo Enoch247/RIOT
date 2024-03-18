@@ -23,18 +23,15 @@
 #include "stmclk.h"
 #include "periph_conf.h"
 
-#if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32F7) || \
-    defined(CPU_FAM_STM32WB) || defined(CPU_FAM_STM32G4) || \
-    defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32L5) || \
-    defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32H7)
-#define REG_PWR_CR          CR1
-#define BIT_CR_DBP          PWR_CR1_DBP
-#elif defined(CPU_FAM_STM32U5)
-#define REG_PWR_CR          DBPR
-#define BIT_CR_DBP          PWR_DBPR_DBP
-#else
-#define REG_PWR_CR          CR
-#define BIT_CR_DBP          PWR_CR_DBP
+#if defined(PWR_CR1_DBP)
+    #define REG_PWR_CR          CR1
+    #define BIT_CR_DBP          PWR_CR1_DBP
+#elif defined(PWR_DBPR_DBP)
+    #define REG_PWR_CR          DBPR
+    #define BIT_CR_DBP          PWR_DBPR_DBP
+#elif defined(PWR_CR_DBP)
+    #define REG_PWR_CR          CR
+    #define BIT_CR_DBP          PWR_CR_DBP
 #endif
 
 #if defined (CPU_FAM_STM32L0) || defined(CPU_FAM_STM32L1)
