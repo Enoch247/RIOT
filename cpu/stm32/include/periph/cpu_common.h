@@ -94,7 +94,7 @@ typedef enum {
       defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32F7) || \
       defined(CPU_FAM_STM32WB) || defined(CPU_FAM_STM32G4) || \
       defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
-      defined(CPU_FAM_STM32WL)
+      defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32H7)
     AHB1,           /**< AHB1 bus */
     AHB2,           /**< AHB2 bus */
 #if defined(CPU_FAM_STM32U5)
@@ -108,7 +108,8 @@ typedef enum {
 #else
 #warning "unsupported stm32XX family"
 #endif
-#if defined(CPU_FAM_STM32WB) || defined(CPU_FAM_STM32MP1)
+#if defined(CPU_FAM_STM32WB) || defined(CPU_FAM_STM32MP1) || \
+    defined(CPU_FAM_STM32H7)
     AHB4,           /**< AHB4 bus */
 #endif
 } bus_t;

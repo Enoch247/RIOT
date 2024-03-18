@@ -43,14 +43,24 @@ static void delay(void)
          * optimize it out - but here the wasting of CPU cycles is desired.
          */
         uint32_t loops = coreclk() / 20;
+        //uint32_t loops = 1;
         for (volatile uint32_t i = 0; i < loops; i++) { }
     }
 }
 
 int main(void)
 {
+    //gpio_init(LED0_PORT_NUM, LED0_PIN_NUM);
+    //gpio_init(LED1_PORT_NUM, LED1_PIN_NUM);
+    //gpio_init(LED2_PORT_NUM, LED2_PIN_NUM);
+
+    LED0_ON;
+    LED1_ON;
+    LED2_OFF;
+
     while (1) {
         delay();
+        LED1_ON;
 #ifdef LED0_TOGGLE
         LED0_TOGGLE;
 #else

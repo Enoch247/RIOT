@@ -60,7 +60,7 @@
 #elif defined(CPU_FAM_STM32U5)
 #define PM_STOP_CONFIG  (0)
 #else
-#define PM_STOP_CONFIG  (PWR_CR_LPDS | PWR_CR_FPDS)
+#define PM_STOP_CONFIG  (PWR_CR1_LPDS | PWR_CR1_LPDS)
 #endif
 #endif
 
@@ -85,7 +85,7 @@
 #elif defined(CPU_FAM_STM32U5)
 #define PM_STANDBY_CONFIG   (0)
 #else
-#define PM_STANDBY_CONFIG   (PWR_CR_PDDS | PWR_CR_CWUF | PWR_CR_CSBF)
+#define PM_STANDBY_CONFIG   (0)
 #endif
 #endif
 
@@ -107,8 +107,8 @@
 #define PWR_CR_REG     PWR->CR1
 #define PWR_WUP_REG    PWR->MCUWKUPENR
 #else
-#define PWR_CR_REG     PWR->CR
-#define PWR_WUP_REG    PWR->CSR
+#define PWR_CR_REG     PWR->CR1
+#define PWR_WUP_REG    PWR->CSR1
 #endif
 
 void pm_set(unsigned mode)

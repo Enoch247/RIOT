@@ -37,7 +37,8 @@ extern "C" {
 
 /* defaults to PLL as clock source */
 #if (_USE_CLOCK_NUMOF == 0)
-    #define CONFIG_USE_CLOCK_PLL 1                  1
+    //#define CONFIG_USE_CLOCK_PLL 1                  1
+    #define CONFIG_USE_CLOCK_HSI                    1
 #elif (_USE_CLOCK_NUMOF > 1)
     #error "Multiple clock sources selected"
 #endif

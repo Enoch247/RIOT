@@ -61,7 +61,7 @@ static gpio_isr_ctx_t isr_ctx[EXTI_NUMOF];
 #define EXTI_REG_RTSR       (EXTI->RTSR)
 #define EXTI_REG_FTSR       (EXTI->FTSR)
 #define EXTI_REG_PR         (EXTI->PR)
-#define EXTI_REG_IMR        (EXTI->IMR)
+#define EXTI_REG_IMR        (EXTI->IMR1)
 #endif
 
 /**
@@ -120,7 +120,7 @@ static inline void port_init_clock(GPIO_TypeDef *port, gpio_t pin)
 #elif defined(CPU_FAM_STM32MP1)
     periph_clk_en(AHB4, (RCC_MC_AHB4ENSETR_GPIOAEN << _port_num(pin)));
 #else
-    periph_clk_en(AHB1, (RCC_AHB1ENR_GPIOAEN << _port_num(pin)));
+    periph_clk_en(AHB4, (RCC_AHB4ENR_GPIOAEN << _port_num(pin)));
 #endif
 }
 
@@ -184,7 +184,7 @@ void gpio_init_analog(gpio_t pin)
 #elif defined(CPU_FAM_STM32MP1)
     periph_clk_en(AHB4, (RCC_MC_AHB4ENSETR_GPIOAEN << _port_num(pin)));
 #else
-    periph_clk_en(AHB1, (RCC_AHB1ENR_GPIOAEN << _port_num(pin)));
+    periph_clk_en(AHB4, (RCC_AHB4ENR_GPIOAEN << _port_num(pin)));
 #endif
     /* set to analog mode, PUPD has to be 0b00 */
     _port(pin)->MODER |= (0x3 << (2 * _pin_num(pin)));
