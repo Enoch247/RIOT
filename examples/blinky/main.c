@@ -49,16 +49,16 @@ static void delay(void)
 
 int main(void)
 {
-    LED0_OFF;
-    LED1_ON;
-    LED2_OFF;
+    //LED0_OFF;
+    //LED1_ON;
+    //LED2_OFF;
 
     while (1) {
         delay();
 #ifdef LED0_TOGGLE
         LED0_TOGGLE;
-        LED1_TOGGLE;
-        LED2_TOGGLE;
+        //LED1_TOGGLE;
+        //LED2_TOGGLE;
 #else
         puts("Blink! (No LED present or configured...)");
 #endif
