@@ -41,7 +41,7 @@
 #error "No clock configuration available for this F4 line"
 #endif
 #elif defined(CPU_FAM_STM32F7) || defined(CPU_FAM_STM32H7)
-#include "f2f4f7/cfg_clock_default_216.h"
+#include "h7/cfg_clock_default_216.h"
 #else
 #error "No clock configuration available for this family"
 #endif

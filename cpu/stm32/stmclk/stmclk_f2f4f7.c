@@ -25,6 +25,7 @@
 #include "periph/gpio.h"
 
 /* PLL configuration */
+//TODO: doens't honor CONFIG_PLL_SRC, does it?
 #if IS_ACTIVE(CONFIG_BOARD_HAS_HSE)
 #define PLL_SRC                     RCC_PLLCFGR_PLLSRC_HSE
 #else

@@ -23,6 +23,26 @@
 extern "C" {
 #endif
 
+#if IS_ACTIVE(CONFIG_BOARD_HAS_HSE)
+    #define CONFIG_CLOCK_PLL_M              (4)  //(3)   //(4)
+    #define CONFIG_CLOCK_PLL_N              (275)//(117) //(275)
+    #define CONFIG_CLOCK_PLL_P              (2)//(1)
+    #define CONFIG_CLOCK_PLL_Q              (4)
+    #define CONFIG_CLOCK_PLL_R              (2)
+#else
+    #define CONFIG_CLOCK_PLL_M              (32)
+    #define CONFIG_CLOCK_PLL_N              (275)
+    #define CONFIG_CLOCK_PLL_P              (1)
+    #define CONFIG_CLOCK_PLL_Q              (4)
+    #define CONFIG_CLOCK_PLL_R              (2)
+#endif
+
+//TODO: ensure CONFIG_CLOCK_PLL_M >=4 && CONFIG_CLOCK_PLL_M <=512
+
+#define CONFIG_CLOCK_APB1_DIV           (2)
+#define CONFIG_CLOCK_APB2_DIV           (2)
+
+#if 0
 /**
  * @name    Clock PLL settings (216MHz)
  * @{
@@ -76,5 +96,6 @@ extern "C" {
 }
 #endif
 
+#endif
 #endif /* CLK_F2F4F7_CFG_CLOCK_DEFAULT_216_H */
 /** @} */

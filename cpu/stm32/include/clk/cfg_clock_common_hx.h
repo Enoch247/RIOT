@@ -35,14 +35,6 @@ extern "C" {
     + IS_ACTIVE(CONFIG_USE_CLOCK_CSI) \
     + IS_ACTIVE(CONFIG_USE_CLOCK_PLL)
 
-/* defaults to PLL as clock source */
-#if (_USE_CLOCK_NUMOF == 0)
-    //#define CONFIG_USE_CLOCK_PLL 1                  1
-    #define CONFIG_USE_CLOCK_HSI                    1
-#elif (_USE_CLOCK_NUMOF > 1)
-    #error "Multiple clock sources selected"
-#endif
-
 /** @brief The High Speed External clock frequency. */
 #ifndef CONFIG_CLOCK_HSE
     #define CONFIG_CLOCK_HSE                        MHZ(8)
@@ -63,6 +55,18 @@ extern "C" {
 /** @brief The Low Power Internal clock frequency. */
 #ifndef CONFIG_CLOCK_CSI
     #define CONFIG_CLOCK_CSI                        MHZ(4)
+#endif
+
+/* defaults to PLL as clock source */
+#if (_USE_CLOCK_NUMOF == 0)
+    //#define CONFIG_USE_CLOCK_HSI                    1
+    //#define CONFIG_USE_CLOCK_HSE                    1
+    #define CONFIG_USE_CLOCK_PLL                    1
+#endif
+
+/* ensure multiple clock sources aren't selected */
+#if (_USE_CLOCK_NUMOF > 1)
+    #error "Multiple clock sources selected"
 #endif
 
 /** @} */
