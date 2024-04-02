@@ -32,6 +32,7 @@ extern "C" {
 static const timer_conf_t timer_config[] = {
     {
         .dev      = TIM2,
+        .rcc_dev  = &periph_timer2,
 #if defined(CPU_FAM_STM32L0) || defined(CPU_FAM_STM32L1)
         .max      = 0x0000ffff,
 #else
@@ -42,6 +43,8 @@ static const timer_conf_t timer_config[] = {
         .rcc_mask = RCC_APB1ENR1_TIM2EN,
 #elif CPU_FAM_STM32MP1
         .rcc_mask = RCC_MC_APB1ENSETR_TIM2EN,
+#elif defined(RCC_APB1LENR_TIM2EN)
+        .rcc_mask = RCC_APB1LENR_TIM2EN,
 #else
         .rcc_mask = RCC_APB1ENR_TIM2EN,
 #endif

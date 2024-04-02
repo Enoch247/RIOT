@@ -29,7 +29,7 @@
     defined(CPU_FAM_STM32MP1)
 #include "cfg_clock_common_fx_gx_mp1.h"
 #elif defined(CPU_FAM_STM32H7)
-#include "cfg_clock_common_hx.h"
+//#include "cfg_clock_common_hx.h"
 #else /* CPU_FAM_STM32L0 || CPU_FAM_STM32L1 || CPU_FAM_STM32L4 ||
        * CPU_FAM_STM32L5 || CPU_FAM_STM32U5 || CPU_FAM_STM32WB */
 #include "cfg_clock_common_lx_u5_wx.h"

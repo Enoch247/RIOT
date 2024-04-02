@@ -11,7 +11,7 @@
  * @{
  *
  * @file
- * @brief           Main header for STM32F2/F4/F7 clock configuration TODO
+ * @brief           Main header for STM32H7 clock configuration
  *
  * @author          Joshua DeWeese <jdeweese@primecontrols.com>
 */
@@ -19,66 +19,111 @@
 #ifndef CFG_CLOCK_DEFAULT_H
 #define CFG_CLOCK_DEFAULT_H
 
-#if defined(CPU_FAM_STM32F2)
-#include "f2f4f7/cfg_clock_default_120.h"
-#elif defined(CPU_FAM_STM32F4)
-#if defined(CPU_LINE_STM32F401xC) || defined(CPU_LINE_STM32F401xE)
-#include "f2f4f7/cfg_clock_default_84.h"
-#elif defined(CPU_LINE_STM32F410Cx) || defined(CPU_LINE_STM32F410Rx) || \
-      defined(CPU_LINE_STM32F410Tx) || defined(CPU_LINE_STM32F411xE) || \
-      defined(CPU_LINE_STM32F412Cx) || defined(CPU_LINE_STM32F412Rx) || \
-      defined(CPU_LINE_STM32F412Vx) || defined(CPU_LINE_STM32F412Zx) || \
-      defined(CPU_LINE_STM32F413xx) || defined(CPU_LINE_STM32F423xx)
-#include "f2f4f7/cfg_clock_default_100.h"
-#elif defined(CPU_LINE_STM32F405xx) || defined(CPU_LINE_STM32F407xx) || \
-      defined(CPU_LINE_STM32F415xx) || defined(CPU_LINE_STM32F417xx) || \
-      defined(CPU_LINE_STM32F427xx) || defined(CPU_LINE_STM32F437xx) || \
-      defined(CPU_LINE_STM32F429xx) || defined(CPU_LINE_STM32F439xx) || \
-      defined(CPU_LINE_STM32F446xx) || defined(CPU_LINE_STM32F469xx) || \
-      defined(CPU_LINE_STM32F479xx)
-#include "f2f4f7/cfg_clock_default_180.h"
-#else
-#error "No clock configuration available for this F4 line"
-#endif
-#elif defined(CPU_FAM_STM32F7) || defined(CPU_FAM_STM32H7)
-#include "h7/cfg_clock_default_216.h"
-#else
-#error "No clock configuration available for this family"
-#endif
-
-/**
- * @name    Clock values
- * @{
- */
-#if IS_ACTIVE(CONFIG_BOARD_HAS_HSE)
-#define CLOCK_PLL_SRC                   (CONFIG_CLOCK_HSE)
-#else /* CONFIG_CLOCK_HSI */
-#define CLOCK_PLL_SRC                   (CONFIG_CLOCK_HSI)
-#endif
-
-#if IS_ACTIVE(CONFIG_USE_CLOCK_HSI)
-#define CLOCK_CORECLOCK                 (CONFIG_CLOCK_HSI)
-
-#elif IS_ACTIVE(CONFIG_USE_CLOCK_HSE)
-#if !IS_ACTIVE(CONFIG_BOARD_HAS_HSE)
-#error "The board doesn't provide an HSE oscillator"
-#endif
-#define CLOCK_CORECLOCK                 (CONFIG_CLOCK_HSE)
-
-#elif IS_ACTIVE(CONFIG_USE_CLOCK_PLL)
-#define CLOCK_CORECLOCK                 (((CLOCK_PLL_SRC / CONFIG_CLOCK_PLL_M) * CONFIG_CLOCK_PLL_N) / CONFIG_CLOCK_PLL_P)
-#endif /* CONFIG_USE_CLOCK_PLL */
-
-#define CLOCK_PLLQ                      (((CLOCK_PLL_SRC / CONFIG_CLOCK_PLL_M) * CONFIG_CLOCK_PLL_N) / CONFIG_CLOCK_PLL_Q)
-
-#define CLOCK_AHB                       CLOCK_CORECLOCK
-#define CLOCK_APB1                      (CLOCK_CORECLOCK / CONFIG_CLOCK_APB1_DIV)
-#define CLOCK_APB2                      (CLOCK_CORECLOCK / CONFIG_CLOCK_APB2_DIV)
-/** @} */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef CONFIG_CLOCK_HSE_MAX
+    #if defined(CPU_LINE_STM32H723xx)
+        #define CONFIG_CLOCK_HSE_MAX                MHZ(50)
+    #endif
+#endif
+
+#ifndef CONFIG_CLOCK_HSE_MIN
+    #if defined(CPU_LINE_STM32H723xx)
+        #define CONFIG_CLOCK_HSE_MIN                MHZ(4)
+    #endif
+#endif
+
+#include "clk/h7/hse.h"
+
+/** @brief The HSI RC oscillator frequency (before any dividers). */
+#ifndef CONFIG_CLOCK_HSI
+    #if defined(CPU_LINE_STM32H723xx)
+        #define CONFIG_CLOCK_HSI                    MHZ(64)
+    #endif
+#endif
+
+/** @brief The HSI RC divider. */
+#ifndef CONFIG_CLOCK_HSI_DIV
+    #if defined(CPU_LINE_STM32H723xx)
+        #define CONFIG_CLOCK_HSI_DIV                1
+    #endif
+#endif
+
+#include "clk/h7/hsi.h"
+
+/** @brief The CSI RC oscillator frequency (before any dividers). */
+#ifndef CONFIG_CLOCK_CSI
+    #if defined(CPU_LINE_STM32H723xx)
+        #define CONFIG_CLOCK_CSI                    MHZ(4)
+    #endif
+#endif
+
+#include "clk/h7/csi.h"
+
+
+
+
+
+
+
+
+#if CLOCK_HSE == MHZ(8)
+    #define CONFIG_CLOCK_PLL1_M              4  //(3)   //(4)
+    #define CONFIG_CLOCK_PLL1_N              275//(117) //(275)
+    #define CONFIG_CLOCK_PLL1_P              2//(1)
+    #define CONFIG_CLOCK_PLL1_Q              4
+    #define CONFIG_CLOCK_PLL1_R              2
+#elif CLOCK_HSI == MHZ(64)
+    #define CONFIG_CLOCK_PLL1_M              32
+    #define CONFIG_CLOCK_PLL1_N              275
+    #define CONFIG_CLOCK_PLL1_P              1
+    #define CONFIG_CLOCK_PLL1_Q              4
+    #define CONFIG_CLOCK_PLL1_R              2
+#else
+    #error "PLL source does not match a known configuration"
+#endif
+
+#include "clk/h7/pll1.h"
+
+
+
+#ifndef CONFIG_CLOCK_CORECLOCK_DIV
+    #define CONFIG_CLOCK_CORECLOCK_DIV      1
+#endif
+
+#include "clk/h7/coreclock.h"
+
+
+
+#ifndef CONFIG_CLOCK_AHB_DIV
+    #define CONFIG_CLOCK_AHB_DIV            2
+#endif
+
+#include "clk/h7/ahb.h"
+
+
+
+#ifndef CONFIG_CLOCK_APB1_DIV
+    #define CONFIG_CLOCK_APB1_DIV           2
+#endif
+
+#ifndef CONFIG_CLOCK_APB2_DIV
+    #define CONFIG_CLOCK_APB2_DIV           2
+#endif
+
+#ifndef CONFIG_CLOCK_APB3_DIV
+    #define CONFIG_CLOCK_APB3_DIV           2
+#endif
+
+#ifndef CONFIG_CLOCK_APB4_DIV
+    #define CONFIG_CLOCK_APB4_DIV           2
+#endif
+
+#include "clk/h7/apb1.h"
+
+
 
 #ifdef __cplusplus
 }

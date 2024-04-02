@@ -114,6 +114,12 @@ typedef enum {
 #endif
 } bus_t;
 
+typedef struct periph_t
+{
+    volatile uint32_t *en_reg;
+    uint32_t en_mask;
+} periph_t;
+
 /**
  * @brief   Get the actual bus clock frequency for the APB buses
  *
@@ -139,6 +145,8 @@ uint32_t periph_timer_clk(bus_t bus);
  * @param[in] mask      bit in the RCC enable register
  */
 void periph_clk_en(bus_t bus, uint32_t mask);
+//void periph_clk_en2(const void *dev);
+void periph_clk_en2(const periph_t *periph);
 
 /**
  * @brief   Disable the given peripheral clock
@@ -163,6 +171,7 @@ void periph_lpclk_en(bus_t bus, uint32_t mask);
  * @param[in] mask      bit in the RCC enable register
  */
 void periph_lpclk_dis(bus_t bus, uint32_t mask);
+void periph_clk_dis2(const periph_t *periph);
 
 #ifdef __cplusplus
 }

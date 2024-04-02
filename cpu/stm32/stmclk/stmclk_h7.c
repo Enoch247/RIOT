@@ -38,11 +38,11 @@
 #endif
 
 /* Compute the bitfields for the PLL configuration */
-#define PLL_M                       ((CONFIG_CLOCK_PLL_M)     << RCC_PLLCKSELR_DIVM1_Pos)
-#define PLL_N                       ((CONFIG_CLOCK_PLL_N - 1) << RCC_PLL1DIVR_N1_Pos)
-#define PLL_P                       ((CONFIG_CLOCK_PLL_P - 1) << RCC_PLL1DIVR_P1_Pos)
-#define PLL_Q                       ((CONFIG_CLOCK_PLL_Q - 1) << RCC_PLL1DIVR_Q1_Pos)
-#define PLL_R                       ((CONFIG_CLOCK_PLL_R - 1) << RCC_PLL1DIVR_R1_Pos)
+#define PLL_M                       ((CONFIG_CLOCK_PLL1_M)     << RCC_PLLCKSELR_DIVM1_Pos)
+#define PLL_N                       ((CONFIG_CLOCK_PLL1_N - 1) << RCC_PLL1DIVR_N1_Pos)
+#define PLL_P                       ((CONFIG_CLOCK_PLL1_P - 1) << RCC_PLL1DIVR_P1_Pos)
+#define PLL_Q                       ((CONFIG_CLOCK_PLL1_Q - 1) << RCC_PLL1DIVR_Q1_Pos)
+#define PLL_R                       ((CONFIG_CLOCK_PLL1_R - 1) << RCC_PLL1DIVR_R1_Pos)
 
 /* Select 48MHz clock source between PLLQ, PLLI2SQ or PLLSAIQ. This depends on
    the PLL parameters and if not possible on CPU lines which can provide 48MHz

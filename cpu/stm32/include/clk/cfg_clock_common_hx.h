@@ -23,53 +23,7 @@
 extern "C" {
 #endif
 
-/**
- * @name    Clock common configuration (H7)
- * @{
- */
 
-/** @brief The total number of clock sources selected. */
-#define _USE_CLOCK_NUMOF \
-      IS_ACTIVE(CONFIG_USE_CLOCK_HSI) \
-    + IS_ACTIVE(CONFIG_USE_CLOCK_HSE) \
-    + IS_ACTIVE(CONFIG_USE_CLOCK_CSI) \
-    + IS_ACTIVE(CONFIG_USE_CLOCK_PLL)
-
-/** @brief The High Speed External clock frequency. */
-#ifndef CONFIG_CLOCK_HSE
-    #define CONFIG_CLOCK_HSE                        MHZ(8)
-#endif
-
-/** @brief The High Speed Internal clock frequency. */
-#ifndef CONFIG_CLOCK_HSI
-    #if defined(CPU_LINE_STM32H723xx)
-        #define CONFIG_CLOCK_HSI                    MHZ(64)
-    #endif
-#endif
-
-/** @brief The High Speed Internal 48 MHz clock frequency. */
-#ifndef CONFIG_CLOCK_HSI48
-    #define CONFIG_CLOCK_HSI48                      MHZ(48)
-#endif
-
-/** @brief The Low Power Internal clock frequency. */
-#ifndef CONFIG_CLOCK_CSI
-    #define CONFIG_CLOCK_CSI                        MHZ(4)
-#endif
-
-/* defaults to PLL as clock source */
-#if (_USE_CLOCK_NUMOF == 0)
-    //#define CONFIG_USE_CLOCK_HSI                    1
-    //#define CONFIG_USE_CLOCK_HSE                    1
-    #define CONFIG_USE_CLOCK_PLL                    1
-#endif
-
-/* ensure multiple clock sources aren't selected */
-#if (_USE_CLOCK_NUMOF > 1)
-    #error "Multiple clock sources selected"
-#endif
-
-/** @} */
 
 #ifdef __cplusplus
 }
