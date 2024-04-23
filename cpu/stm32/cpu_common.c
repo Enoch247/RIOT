@@ -86,49 +86,61 @@ static const uint8_t apbmul[] = {
 
 static volatile uint32_t* _rcc_en_reg(bus_t bus)
 {
-    switch (bus)
-    {
-        #ifdef APB1_PERIPH_EN
-        case APB1: return &APB1_PERIPH_EN;
-        #endif
-        #ifdef APB12_PERIPH_EN
-        case APB12: return &APB12_PERIPH_EN;
-        #endif
-        #ifdef APB2_PERIPH_EN
-        case APB2: return &APB2_PERIPH_EN;
-        #endif
-        #ifdef APB22_PERIPH_EN
-        case APB22: return &APB22_PERIPH_EN;
-        #endif
-        #ifdef APB3_PERIPH_EN
-        case APB3: return &APB3_PERIPH_EN;
-        #endif
-        #ifdef APB4_PERIPH_EN
-        case APB4: return &APB4_PERIPH_EN;
-        #endif
-        #ifdef AHB_PERIPH_EN
-        case AHB: return &AHB_PERIPH_EN;
-        #endif
-        #ifdef AHB1_PERIPH_EN
-        case AHB1: return &AHB1_PERIPH_EN;
-        #endif
-        #ifdef AHB2_PERIPH_EN
-        case AHB2: return &AHB2_PERIPH_EN;
-        #endif
-        #ifdef AHB22_PERIPH_EN
-        case AHB22: return &AHB22_PERIPH_EN;
-        #endif
-        #ifdef AHB3_PERIPH_EN
-        case AHB3: return &AHB3_PERIPH_EN;
-        #endif
-        #ifdef AHB4_PERIPH_EN
-        case AHB4: return &AHB4_PERIPH_EN;
-        #endif
-        #ifdef IOP_PERIPH_EN
-        case IOP: return &IOP_PERIPH_EN;
-        #endif
+    switch (bus) {
+#ifdef APB1_PERIPH_EN
+    case APB1:
+        return &APB1_PERIPH_EN;
+#endif
+#ifdef APB12_PERIPH_EN
+    case APB12:
+        return &APB12_PERIPH_EN;
+#endif
+#ifdef APB2_PERIPH_EN
+    case APB2:
+        return &APB2_PERIPH_EN;
+#endif
+#ifdef APB22_PERIPH_EN
+    case APB22:
+        return &APB22_PERIPH_EN;
+#endif
+#ifdef APB3_PERIPH_EN
+    case APB3:
+        return &APB3_PERIPH_EN;
+#endif
+#ifdef APB4_PERIPH_EN
+    case APB4:
+        return &APB4_PERIPH_EN;
+#endif
+#ifdef AHB_PERIPH_EN
+    case AHB:
+        return &AHB_PERIPH_EN;
+#endif
+#ifdef AHB1_PERIPH_EN
+    case AHB1:
+        return &AHB1_PERIPH_EN;
+#endif
+#ifdef AHB2_PERIPH_EN
+    case AHB2:
+        return &AHB2_PERIPH_EN;
+#endif
+#ifdef AHB22_PERIPH_EN
+    case AHB22:
+        return &AHB22_PERIPH_EN;
+#endif
+#ifdef AHB3_PERIPH_EN
+    case AHB3:
+        return &AHB3_PERIPH_EN;
+#endif
+#ifdef AHB4_PERIPH_EN
+    case AHB4:
+        return &AHB4_PERIPH_EN;
+#endif
+#ifdef IOP_PERIPH_EN
+    case IOP:
+        return &IOP_PERIPH_EN;
+#endif
 
-        case BUS_NUMOF:
+    case BUS_NUMOF:
         assert(false);
         return NULL;
     }
@@ -143,69 +155,82 @@ static volatile uint32_t* _rcc_dis_reg(bus_t bus)
        provided when all other cases are *not* provided. This is to ensure that
        either all cases or no cases are provided. Anything else will cause the
        compiler to emit a warning. */
-    switch (bus)
-    {
-        #ifdef APB1_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB1: return &APB1_PERIPH_DIS;
-        #endif
-        #ifdef APB12_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB12: return &APB12_PERIPH_DIS;
-        #endif
-        #ifdef APB2_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB2: return &APB2_PERIPH_DIS;
-        #endif
-        #ifdef APB22_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB22: return &APB22_PERIPH_DIS;
-        #endif
-        #ifdef APB3_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB3: return &APB3_PERIPH_DIS;
-        #endif
-        #ifdef APB4_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case APB4: return &APB4_PERIPH_DIS;
-        #endif
-        #ifdef AHB_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB: return &AHB_PERIPH_DIS;
-        #endif
-        #ifdef AHB1_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB1: return &AHB1_PERIPH_DIS;
-        #endif
-        #ifdef AHB2_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB2: return &AHB2_PERIPH_DIS;
-        #endif
-        #ifdef AHB22_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB22: return &AHB22_PERIPH_DIS;
-        #endif
-        #ifdef AHB3_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB3: return &AHB3_PERIPH_DIS;
-        #endif
-        #ifdef AHB4_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case AHB4: return &AHB4_PERIPH_DIS;
-        #endif
-        #ifdef IOP_PERIPH_DIS
-        #define RCC_REG_IS_ATOMIC 1
-        case IOP: return &IOP_PERIPH_DIS;
-        #endif
+    switch (bus) {
+#ifdef APB1_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB1:
+        return &APB1_PERIPH_DIS;
+    #endif
+#ifdef APB12_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB12:
+        return &APB12_PERIPH_DIS;
+#endif
+#ifdef APB2_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB2:
+        return &APB2_PERIPH_DIS;
+#endif
+#ifdef APB22_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB22:
+        return &APB22_PERIPH_DIS;
+#endif
+#ifdef APB3_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB3:
+        return &APB3_PERIPH_DIS;
+#endif
+#ifdef APB4_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case APB4:
+        return &APB4_PERIPH_DIS;
+#endif
+#ifdef AHB_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB:
+        return &AHB_PERIPH_DIS;
+#endif
+#ifdef AHB1_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB1:
+        return &AHB1_PERIPH_DIS;
+#endif
+#ifdef AHB2_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB2:
+        return &AHB2_PERIPH_DIS;
+#endif
+#ifdef AHB22_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB22:
+        return &AHB22_PERIPH_DIS;
+#endif
+#ifdef AHB3_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB3:
+        return &AHB3_PERIPH_DIS;
+#endif
+#ifdef AHB4_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case AHB4:
+        return &AHB4_PERIPH_DIS;
+#endif
+#ifdef IOP_PERIPH_DIS
+    #define RCC_REG_IS_ATOMIC 1
+    case IOP:
+        return &IOP_PERIPH_DIS;
+#endif
 
-        /* If MCU does not have separate set/clear bits. */
-        #if RCC_REG_IS_ATOMIC == 0
-        default: return  _rcc_dis_reg(bus);
-        #else
-        case BUS_NUMOF:
+    /* If MCU does not have separate set/clear bits. */
+#if RCC_REG_IS_ATOMIC == 0
+    default:
+        return  _rcc_dis_reg(bus);
+#else
+    case BUS_NUMOF:
         assert(false);
         return NULL;
-        #endif
+#endif
     }
 
     assert(false);
@@ -218,65 +243,78 @@ static volatile uint32_t* _rcc_lp_en_reg(bus_t bus)
        provided when all other cases are *not* provided. This is to ensure that
        either all cases or no cases are provided. Anything else will cause the
        compiler to emit a warning. */
-    switch (bus)
-    {
-        #ifdef APB1_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB1: return &APB1_PERIPH_LP_EN;
-        #endif
-        #ifdef APB12_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB12: return &APB12_PERIPH_LP_EN;
-        #endif
-        #ifdef APB2_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB2: return &APB2_PERIPH_LP_EN;
-        #endif
-        #ifdef APB22_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB22: return &APB22_PERIPH_LP_EN;
-        #endif
-        #ifdef APB3_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB3: return &APB3_PERIPH_LP_EN;
-        #endif
-        #ifdef APB4_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case APB4: return &APB4_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB: return &AHB_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB1_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB1: return &AHB1_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB2_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB2: return &AHB2_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB22_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB22: return &AHB22_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB3_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB3: return &AHB3_PERIPH_LP_EN;
-        #endif
-        #ifdef AHB4_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case AHB4: return &AHB4_PERIPH_LP_EN;
-        #endif
-        #ifdef IOP_PERIPH_LP_EN
-        #define HAS_LP_MODE 1
-        case IOP: return &IOP_PERIPH_LP_EN;
-        #endif
+    switch (bus) {
+#ifdef APB1_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB1:
+        return &APB1_PERIPH_LP_EN;
+#endif
+#ifdef APB12_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB12:
+        return &APB12_PERIPH_LP_EN;
+#endif
+#ifdef APB2_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB2:
+        return &APB2_PERIPH_LP_EN;
+#endif
+#ifdef APB22_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB22:
+        return &APB22_PERIPH_LP_EN;
+#endif
+#ifdef APB3_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB3:
+        return &APB3_PERIPH_LP_EN;
+#endif
+#ifdef APB4_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case APB4:
+        return &APB4_PERIPH_LP_EN;
+#endif
+#ifdef AHB_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB:
+        return &AHB_PERIPH_LP_EN;
+#endif
+#ifdef AHB1_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB1:
+        return &AHB1_PERIPH_LP_EN;
+#endif
+#ifdef AHB2_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB2:
+        return &AHB2_PERIPH_LP_EN;
+#endif
+#ifdef AHB22_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB22:
+        return &AHB22_PERIPH_LP_EN;
+#endif
+#ifdef AHB3_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB3:
+        return &AHB3_PERIPH_LP_EN;
+#endif
+#ifdef AHB4_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case AHB4:
+        return &AHB4_PERIPH_LP_EN;
+#endif
+#ifdef IOP_PERIPH_LP_EN
+    #define HAS_LP_MODE 1
+    case IOP:
+        return &IOP_PERIPH_LP_EN;
+#endif
 
-        #if HAS_LP_MODE == 0
-        default: /* fall through */
-        #endif
-        case BUS_NUMOF:
+#if HAS_LP_MODE == 0
+    default:
+        /* fall through */
+#endif
+    case BUS_NUMOF:
         assert(false);
         return NULL;
     }
@@ -287,9 +325,9 @@ static volatile uint32_t* _rcc_lp_en_reg(bus_t bus)
 
 static volatile uint32_t* _rcc_lp_dis_reg(bus_t bus)
 {
-    #if RCC_REG_IS_ATOMIC && HAS_LP_MODE
-        #error "Atomic disable of periph-in-low-power-mode not implemented yet."
-    #endif
+#if RCC_REG_IS_ATOMIC && HAS_LP_MODE
+    #error "Atomic disable of periph-in-low-power-mode not implemented yet."
+#endif
 
     return _rcc_lp_en_reg(bus);
 }
@@ -298,12 +336,10 @@ static void _rcc_reg_set(volatile uint32_t *reg, uint32_t mask)
 {
     assert(reg);
 
-    if (IS_ACTIVE(RCC_REG_IS_ATOMIC))
-    {
-        *reg |= mask;
+    if (IS_ACTIVE(RCC_REG_IS_ATOMIC)) {
+        *reg = mask;
     }
-    else
-    {
+    else {
         const int irq_state = irq_disable();
         *reg |= mask;
         irq_restore(irq_state);
@@ -314,12 +350,10 @@ static void _rcc_reg_clr(volatile uint32_t *reg, uint32_t mask)
 {
     assert(reg);
 
-    if (IS_ACTIVE(RCC_REG_IS_ATOMIC))
-    {
-        *reg |= mask;
+    if (IS_ACTIVE(RCC_REG_IS_ATOMIC)) {
+        *reg = mask;
     }
-    else
-    {
+    else {
         const int irq_state = irq_disable();
         *reg &= ~(mask);
         irq_restore(irq_state);
