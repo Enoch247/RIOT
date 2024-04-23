@@ -14,17 +14,49 @@
  * @brief       Shared CPU specific function for the STM32 CPU family
  *
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
- * @author      Joshua DeWeese <jdeweese@primecontrols.com>
  *
  * @}
  */
 
-#include "macros/utils.h"
 #include "periph_conf.h"
 #include "periph_cpu.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
+
+/**
+ * @brief   Timer specific additional bus clock prescaler
+ *
+ * This prescale factor is dependent on the actual APBx bus clock divider, if
+ * the APBx presacler is != 1, it is set to 2, if the APBx prescaler is == 1, it
+ * is set to 1.
+ *
+ * See reference manuals section 'reset and clock control'.
+ */
+static const uint8_t apbmul[] = {
+#if (CLOCK_APB1 < CLOCK_CORECLOCK)
+    [APB1] = 2,
+#if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32WB) || \
+    defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4) || \
+    defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
+    defined(CPU_FAM_STM32WL)
+    [APB12] = 2,
+#endif
+#else
+    [APB1] = 1,
+#if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32WB) || \
+    defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4) || \
+    defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
+    defined(CPU_FAM_STM32WL)
+    [APB12] = 1,
+#endif
+#endif
+#if (CLOCK_APB2 < CLOCK_CORECLOCK)
+    [APB2] = 2
+#else
+    [APB2] = 1
+#endif
+};
 
 uint32_t periph_apb_clk(bus_t bus)
 {
@@ -93,7 +125,7 @@ void periph_clk_en(bus_t bus, uint32_t mask)
 #elif defined(CPU_FAM_STM32MP1)
             RCC->MC_APB1ENSETR |= mask;
 #else
-            RCC->APB1LENR |= mask;
+            RCC->APB1ENR |= mask;
 #endif
             break;
 #if !defined(CPU_FAM_STM32G0)
@@ -160,68 +192,17 @@ void periph_clk_en(bus_t bus, uint32_t mask)
             break;
 #endif
 #endif
-#if defined(CPU_FAM_STM32MP1) || defined(CPU_FAM_STM32H7)
+#if defined(CPU_FAM_STM32MP1)
         case AHB4:
-            RCC->AHB4ENR |= mask;
+            RCC->MC_AHB4ENSETR |= mask;
             break;
 #endif
-        default: //TODO: rm
+        default:
             DEBUG("unsupported bus %d\n", (int)bus);
             break;
     }
     /* stm32xx-errata: Delay after a RCC peripheral clock enable */
     __DSB();
-}
-
-#if 0
-static const periph_t* _periph(const void *dev)
-{
-    #ifdef TIM1
-    static_assert(ARRAY_SIZE(_timers) >= 1);
-    if (TIM1 == dev)
-    {
-        return &_timers[0];
-    }
-    #endif
-
-    #ifdef TIM2
-    static_assert(ARRAY_SIZE(_timers) >= 2);
-    if (TIM2 == dev)
-    {
-        return &_timers[1];
-    }
-    #endif
-
-    return NULL;
-}
-
-void periph_clk_en2(const void *dev)
-{
-    const periph_t *periph = _periph(dev);
-
-    ...
-}
-#endif
-
-void periph_clk_en2(const periph_t *periph)
-{
-    assert(periph);
-
-    const int irq_state = irq_disable();
-    *(periph->en_reg) |= periph->en_mask;
-    irq_restore(irq_state);
-
-    /* stm32xx-errata: Delay after a RCC peripheral clock enable */
-    __DSB();
-}
-
-void periph_clk_dis2(const periph_t *periph)
-{
-    assert(periph);
-
-    const int irq_state = irq_disable();
-    *(periph->en_reg) &= ~(periph->en_mask);
-    irq_restore(irq_state);
 }
 
 void periph_clk_dis(bus_t bus, uint32_t mask)
@@ -238,7 +219,7 @@ void periph_clk_dis(bus_t bus, uint32_t mask)
             /* Write 1 to clear */
             RCC->MC_APB1ENCLRR |= mask;
 #else
-            RCC->APB1LENR &= ~(mask);
+            RCC->APB1ENR &= ~(mask);
 #endif
             break;
 #if !defined(CPU_FAM_STM32G0)
