@@ -21,6 +21,7 @@
 
 #include <assert.h>
 
+#include "macros/utils.h"
 #include "modules.h"
 #include "periph_conf.h"
 #include "periph_cpu.h"
@@ -32,6 +33,7 @@
         defined(CPU_FAM_STM32F4) || \
         defined(CPU_FAM_STM32F7) || \
         defined(CPU_FAM_STM32L1)
+        //TODO: add low pwr support?
             #define APB1_PERIPH_LP_EN           RCC->APB1LPENR
             #define APB2_PERIPH_LP_EN           RCC->APB2LPENR
             #ifdef AHB_PERIPH_EN
@@ -47,42 +49,6 @@
                 #define AHB3_PERIPH_LP_EN       RCC->AHB3LPENR
             #endif
 #endif
-
-/**
- * @brief   Timer specific additional bus clock prescaler
- *
- * This prescale factor is dependent on the actual APBx bus clock divider, if
- * the APBx presacler is != 1, it is set to 2, if the APBx prescaler is == 1, it
- * is set to 1.
- *
- * See reference manuals section 'reset and clock control'.
- */
-static const uint8_t apbmul[] = {
-#if (CLOCK_APB1 < CLOCK_CORECLOCK)
-    [APB1] = 2,
-#if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32WB) || \
-    defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4) || \
-    defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
-    defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32C0)
-    [APB12] = 2,
-#endif
-#else
-    [APB1] = 1,
-#if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32WB) || \
-    defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4) || \
-    defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
-    defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32C0)
-    [APB12] = 1,
-#endif
-#endif
-#if defined(APB2_PERIPH_EN)
-#if (CLOCK_APB2 < CLOCK_CORECLOCK)
-    [APB2] = 2
-#else
-    [APB2] = 1
-#endif
-#endif
-};
 
 static volatile uint32_t* _rcc_en_reg(bus_t bus)
 {

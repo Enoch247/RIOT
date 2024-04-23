@@ -86,6 +86,9 @@ extern "C" {
 #elif   defined(CPU_FAM_STM32MP1)
             #define APB1_PERIPH_EN              RCC->MC_APB1ENSETR
             #define APB1_PERIPH_DIS             RCC->MC_APB1ENCLRR
+#elif   defined(CPU_FAM_STM32H7)
+            #define APB1_PERIPH_EN              RCC->APB1LENR
+            #define APB12_PERIPH_EN             RCC->APB1HENR
 #elif   defined(APB1PERIPH_BASE) || \
         defined(CPU_FAM_STM32F0) || \
         defined(CPU_FAM_STM32L0)
@@ -162,8 +165,10 @@ extern "C" {
 #if     defined(CPU_FAM_STM32MP1)
             #define AHB4_PERIPH_EN              RCC->MC_AHB4ENSETR
             #define AHB4_PERIPH_DIS             RCC->MC_AHB4ENCLRR
+#elif   defined(CPU_FAM_STM32H7)
+            #define AHB4_PERIPH_EN              RCC->AHB4ENR
 #elif   defined(AHB4PERIPH_BASE)
-            #define AHB4_PERIPH_EN              RCC->AHB3ENR
+            #define AHB4_PERIPH_EN              RCC->AHB3ENR //TODO: AHB3?
 #endif
 
 /* if CPU has IOP bus */
