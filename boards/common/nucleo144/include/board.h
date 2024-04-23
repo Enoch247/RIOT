@@ -46,8 +46,13 @@ extern "C" {
 #define LED0_PORT_NUM       PORT_B
 #endif
 
+#if defined(BOARD_NUCLEO_H723ZG)
+#define LED1_PIN_NUM        1
+#define LED1_PORT_NUM       PORT_E
+#else
 #define LED1_PIN_NUM        7
 #define LED1_PORT_NUM       PORT_B
+#endif
 
 #if defined(CPU_MODEL_STM32L552ZE)
 #define LED2_PIN_NUM        9

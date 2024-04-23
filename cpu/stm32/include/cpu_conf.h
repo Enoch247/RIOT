@@ -55,6 +55,9 @@
 #elif CPU_FAM_STM32G4
 #include "stm32g4xx.h"
 #include "irqs/g4/irqs.h"
+#elif CPU_FAM_STM32H7
+#include "stm32h7xx.h"
+#include "irqs/h7/irqs.h"
 #elif CPU_FAM_STM32L0
 #include "stm32l0xx.h"
 #include "irqs/l0/irqs.h"

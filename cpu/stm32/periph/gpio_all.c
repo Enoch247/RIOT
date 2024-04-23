@@ -62,7 +62,7 @@ static gpio_isr_ctx_t isr_ctx[EXTI_NUMOF];
 #define EXTI_REG_RTSR       (EXTI->RTSR)
 #define EXTI_REG_FTSR       (EXTI->FTSR)
 #define EXTI_REG_PR         (EXTI->PR)
-#define EXTI_REG_IMR        (EXTI->IMR)
+#define EXTI_REG_IMR        (EXTI->IMR1)
 #endif
 
 /**
@@ -108,6 +108,8 @@ static inline void port_init_clock(GPIO_TypeDef *port, gpio_t pin)
     periph_clk_en(AHB2, (RCC_AHB2ENR_GPIOAEN << _port_num(pin)));
 #elif defined(RCC_AHB2ENR1_GPIOAEN)
     periph_clk_en(AHB2, (RCC_AHB2ENR1_GPIOAEN << _port_num(pin)));
+#elif defined(RCC_AHB4ENR_GPIOAEN)
+    periph_clk_en(AHB4, (RCC_AHB4ENR_GPIOAEN << _port_num(pin)));
 #elif defined(RCC_MC_AHB4ENSETR_GPIOAEN)
     periph_clk_en(AHB4, (RCC_MC_AHB4ENSETR_GPIOAEN << _port_num(pin)));
 #elif defined (RCC_IOPENR_GPIOAEN)
@@ -180,6 +182,8 @@ void gpio_init_analog(gpio_t pin)
     periph_clk_en(AHB2, (RCC_AHB2ENR_GPIOAEN << _port_num(pin)));
 #elif defined(RCC_AHB2ENR1_GPIOAEN)
     periph_clk_en(AHB2, (RCC_AHB2ENR1_GPIOAEN << _port_num(pin)));
+#elif defined(RCC_AHB4ENR_GPIOAEN)
+    periph_clk_en(AHB4, (RCC_AHB4ENR_GPIOAEN << _port_num(pin)));
 #elif defined(RCC_MC_AHB4ENSETR_GPIOAEN)
     periph_clk_en(AHB4, (RCC_MC_AHB4ENSETR_GPIOAEN << _port_num(pin)));
 #elif defined (RCC_IOPENR_GPIOAEN)
@@ -193,6 +197,7 @@ void gpio_init_analog(gpio_t pin)
     _port(pin)->PUPDR &= ~(0x3 << (2 * _pin_num(pin)));
 }
 
+//TODO: move to inside IRQ module define
 void gpio_irq_enable(gpio_t pin)
 {
     EXTI_REG_IMR |= (1 << _pin_num(pin));

@@ -1,3 +1,5 @@
+BOARD ?= nucleo-h723zg
+
 # name of your application
 APPLICATION = blinky
 
@@ -17,5 +19,8 @@ QUIET ?= 1
 
 # Use a peripheral timer for the delay, if available
 FEATURES_OPTIONAL += periph_timer
+#FEATURES_OPTIONAL += ztimer
+
+#USEMODULE += stdio_null
 
 include $(RIOTBASE)/Makefile.include

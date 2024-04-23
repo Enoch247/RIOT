@@ -48,6 +48,8 @@
 #define BIT_APB_PWREN       RCC_APB1ENR1_PWREN
 #elif defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32C0)
 #define BIT_APB_PWREN       RCC_APBENR1_PWREN
+#elif defined (CPU_FAM_STM32H7)
+#define BIT_APB_PWREN       RCC_APB1HENR_CRSEN
 #elif !defined(CPU_FAM_STM32MP1)
 #define BIT_APB_PWREN       RCC_APB1ENR_PWREN
 #endif
@@ -59,6 +61,7 @@
 
 #define STM32_CPU_MAX_GPIOS    (12U)
 
+//TODO
 #if defined(CPU_FAM_STM32L1)
 #define GPIO_CLK              (AHB)
 #define GPIO_CLK_ENR          (RCC->AHBENR)
@@ -96,6 +99,7 @@
  */
 static void _gpio_init_ain(void)
 {
+return;
     uint32_t ahb_gpio_clocks;
 
     /* enable GPIO clock and save GPIO clock configuration */

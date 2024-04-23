@@ -362,19 +362,56 @@ static void _rcc_reg_clr(volatile uint32_t *reg, uint32_t mask)
 
 uint32_t periph_apb_clk(bus_t bus)
 {
-#ifdef CLOCK_APB2
-    if (bus == APB2) {
-        return CLOCK_APB2;
+    switch (bus) {
+        case APB1:
+            return CLOCK_APB1;
+
+#       ifdef CLOCK_APB2
+        case APB2:
+            return CLOCK_APB2;
+#       endif
+
+#       ifdef CLOCK_APB12
+        case APB12:
+            return CLOCK_APB12;
+#       endif
+
+#       ifdef CLOCK_APB3
+/*        case APB3:*/
+/*            return CLOCK_APB3;*/
+#       endif
+
+#       ifdef CLOCK_APB4
+/*        case APB4:*/
+/*            return CLOCK_APB4;*/
+#       endif
+
+        default:
+            break;
     }
-#else
-    (void)bus;
-#endif
-    return CLOCK_APB1;
+
+    return 0;
 }
 
 uint32_t periph_timer_clk(bus_t bus)
 {
-    return periph_apb_clk(bus) * apbmul[bus];
+    const bool timpre =
+        #if defined(RCC_DCKCFGR_TIMPRE)
+        RCC->DCKCFGR & RCC_DCKCFGR_TIMPRE
+        #elif defined(RCC_DCKCFGR1_TIMPRE)
+        RCC->DCKCFGR1 & RCC_DCKCFGR1_TIMPRE
+        #elif defined(RCC_CFGR_TIMPRE)
+        RCC->CFGR & RCC_CFGR_TIMPRE
+        #else
+        false
+        #endif
+        ;
+
+    const unsigned multiplier_max = (timpre) ? 2 : 4;
+    const unsigned periph_bus_divider = CLOCK_AHB / periph_apb_clk(bus);
+    const unsigned multiplier = MIN(periph_bus_divider, multiplier_max);
+
+    return periph_apb_clk(bus) * multiplier;
 }
 
 void periph_clk_en(bus_t bus, uint32_t mask)

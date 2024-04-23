@@ -29,7 +29,7 @@
 static void delay(void)
 {
     if (IS_USED(MODULE_ZTIMER)) {
-        ztimer_sleep(ZTIMER_USEC, 1 * US_PER_SEC);
+        ztimer_sleep(ZTIMER_USEC, 0.5 * US_PER_SEC);
     }
     else {
         /*
@@ -49,10 +49,16 @@ static void delay(void)
 
 int main(void)
 {
+    //LED0_OFF;
+    //LED1_ON;
+    //LED2_OFF;
+
     while (1) {
         delay();
 #ifdef LED0_TOGGLE
         LED0_TOGGLE;
+        //LED1_TOGGLE;
+        //LED2_TOGGLE;
 #else
         puts("Blink! (No LED present or configured...)");
 #endif

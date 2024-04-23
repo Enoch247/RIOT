@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2017 Freie Universität Berlin
- *               2017 OTA keys S.A.
+ * Copyright (c) 2024 Prime Controls, Inc.(R)
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
@@ -12,10 +11,9 @@
  * @{
  *
  * @file
- * @brief       Implementation of STM32 clock configuration for F0/F1/F2/F3/F4/F7 families
+ * @brief       Implementation of STM32 clock configuration for H7 family
  *
- * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
- * @author      Vincent Dupont <vincent@otakeys.com>
+ * @author      Joshua DeWeese <jdeweese@primecontrols.com>
  * @}
  */
 
@@ -25,13 +23,13 @@
 #include "periph/gpio.h"
 
 /* PLL configuration */
-//TODO: doens't honor CONFIG_PLL_SRC, does it?
 #if IS_ACTIVE(CONFIG_BOARD_HAS_HSE)
-#define PLL_SRC                     RCC_PLLCFGR_PLLSRC_HSE
+#define PLL_SRC                     RCC_PLLCKSELR_PLLSRC_HSE
 #else
-#define PLL_SRC                     RCC_PLLCFGR_PLLSRC_HSI
+#define PLL_SRC                     RCC_PLLCKSELR_PLLSRC_HSI
 #endif
 
+//TODO use IS_ACTIVE() instead
 /* I2S clock source */
 #ifndef CONFIG_PLLI2S_SRC
 #define CONFIG_PLLI2S_SRC           (0)     /* PLLI2S used as I2S clock source */
@@ -40,15 +38,11 @@
 #endif
 
 /* Compute the bitfields for the PLL configuration */
-#define PLL_M                       (CONFIG_CLOCK_PLL_M << RCC_PLLCFGR_PLLM_Pos)
-#define PLL_N                       (CONFIG_CLOCK_PLL_N << RCC_PLLCFGR_PLLN_Pos)
-#define PLL_P                       (((CONFIG_CLOCK_PLL_P / 2) - 1) << RCC_PLLCFGR_PLLP_Pos)
-#define PLL_Q                       (CONFIG_CLOCK_PLL_Q << RCC_PLLCFGR_PLLQ_Pos)
-#if defined(RCC_PLLCFGR_PLLR_Pos)
-#define PLL_R                       (CONFIG_CLOCK_PLL_R << RCC_PLLCFGR_PLLR_Pos)
-#else
-#define PLL_R                       (0)
-#endif
+#define PLL_M                       ((CONFIG_CLOCK_PLL1_M)     << RCC_PLLCKSELR_DIVM1_Pos)
+#define PLL_N                       ((CONFIG_CLOCK_PLL1_N - 1) << RCC_PLL1DIVR_N1_Pos)
+#define PLL_P                       ((CONFIG_CLOCK_PLL1_P - 1) << RCC_PLL1DIVR_P1_Pos)
+#define PLL_Q                       ((CONFIG_CLOCK_PLL1_Q - 1) << RCC_PLL1DIVR_Q1_Pos)
+#define PLL_R                       ((CONFIG_CLOCK_PLL1_R - 1) << RCC_PLL1DIVR_R1_Pos)
 
 /* Select 48MHz clock source between PLLQ, PLLI2SQ or PLLSAIQ. This depends on
    the PLL parameters and if not possible on CPU lines which can provide 48MHz
@@ -218,32 +212,32 @@
 #endif
 
 /* Configure HLCK and PCLK prescalers */
-#define CLOCK_AHB_DIV               (RCC_CFGR_HPRE_DIV1)
+#define CLOCK_AHB_DIV               (RCC_D1CFGR_HPRE_DIV2)
 
 #if CONFIG_CLOCK_APB1_DIV == 1
-#define CLOCK_APB1_DIV              (RCC_CFGR_PPRE1_DIV1)
+#define CLOCK_APB1_DIV              (RCC_D2CFGR_D2PPRE1_DIV1)
 #elif CONFIG_CLOCK_APB1_DIV == 2
-#define CLOCK_APB1_DIV              (RCC_CFGR_PPRE1_DIV2)
+#define CLOCK_APB1_DIV              (RCC_D2CFGR_D2PPRE1_DIV2)
 #elif CONFIG_CLOCK_APB1_DIV == 4
-#define CLOCK_APB1_DIV              (RCC_CFGR_PPRE1_DIV4)
+#define CLOCK_APB1_DIV              (RCC_D2CFGR_D2PPRE1_DIV4)
 #elif CONFIG_CLOCK_APB1_DIV == 8
-#define CLOCK_APB1_DIV              (RCC_CFGR_PPRE1_DIV8)
+#define CLOCK_APB1_DIV              (RCC_D2CFGR_D2PPRE1_DIV8)
 #elif CONFIG_CLOCK_APB1_DIV == 16
-#define CLOCK_APB1_DIV              (RCC_CFGR_PPRE1_DIV16)
+#define CLOCK_APB1_DIV              (RCC_D2CFGR_D2PPRE1_DIV16)
 #else
 #error "Invalid APB1 prescaler value (only 1, 2, 4, 8 and 16 allowed)"
 #endif
 
 #if CONFIG_CLOCK_APB2_DIV == 1
-#define CLOCK_APB2_DIV              (RCC_CFGR_PPRE2_DIV1)
+#define CLOCK_APB2_DIV              (RCC_D2CFGR_D2PPRE2_DIV1)
 #elif CONFIG_CLOCK_APB2_DIV == 2
-#define CLOCK_APB2_DIV              (RCC_CFGR_PPRE2_DIV2)
+#define CLOCK_APB2_DIV              (RCC_D2CFGR_D2PPRE2_DIV2)
 #elif CONFIG_CLOCK_APB2_DIV == 4
-#define CLOCK_APB2_DIV              (RCC_CFGR_PPRE2_DIV4)
+#define CLOCK_APB2_DIV              (RCC_D2CFGR_D2PPRE2_DIV4)
 #elif CONFIG_CLOCK_APB2_DIV == 8
-#define CLOCK_APB2_DIV              (RCC_CFGR_PPRE2_DIV8)
+#define CLOCK_APB2_DIV              (RCC_D2CFGR_D2PPRE2_DIV8)
 #elif CONFIG_CLOCK_APB2_DIV == 16
-#define CLOCK_APB2_DIV              (RCC_CFGR_PPRE2_DIV16)
+#define CLOCK_APB2_DIV              (RCC_D2CFGR_D2PPRE2_DIV16)
 #else
 #error "Invalid APB2 prescaler value (only 1, 2, 4, 8 and 16 allowed)"
 #endif
@@ -256,6 +250,8 @@
 #define FLASH_ACR_CONFIG            (FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN | FLASH_WAITSTATES)
 #elif defined(CPU_FAM_STM32F7)
 #define FLASH_ACR_CONFIG            (FLASH_ACR_ARTEN | FLASH_ACR_PRFTEN | FLASH_WAITSTATES)
+#elif defined(CPU_FAM_STM32H7)
+#define FLASH_ACR_CONFIG            (0)
 #endif
 
 /* Default is not configure MCO1 */
@@ -479,18 +475,24 @@ void stmclk_init_sysclk(void)
     /* disable any interrupts. Global interrupts could be enabled if this is
      * called from some kind of bootloader...  */
     unsigned is = irq_disable();
-    RCC->CIR = 0;
+    //RCC->CR = 0;
 
     /* enable HSI clock for the duration of initialization */
     stmclk_enable_hsi();
 
+    RCC->D1CFGR = RCC_D1CFGR_D1CPRE_DIV1 | RCC_D1CFGR_HPRE_DIV2 | RCC_D1CFGR_D1PPRE_DIV2;
+    RCC->D2CFGR = RCC_D2CFGR_D2PPRE1_DIV2 | RCC_D2CFGR_D2PPRE2_DIV2;
+    RCC->D3CFGR = RCC_D3CFGR_D3PPRE_DIV2;
+
     /* use HSI as system clock while we do any further configuration and
      * configure the AHB and APB clock dividers as configure by the board */
-    RCC->CFGR = (RCC_CFGR_SW_HSI | CLOCK_AHB_DIV | CLOCK_APB1_DIV | CLOCK_APB2_DIV);
+    RCC->CFGR = (RCC_CFGR_SW_HSI);
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {}
 
+#if 0
     /* Flash config */
-    FLASH->ACR = FLASH_ACR_CONFIG;
+    //FLASH->ACR = FLASH_ACR_CONFIG;
+    FLASH->ACR = FLASH_ACR_LATENCY_2WS;
 
     /* Enable Over-Drive if HCLK > 168MHz on F4 or HCLK > 180MHz on F7 */
 #if defined(CPU_FAM_STM32F4) && defined(PWR_CR_ODEN)
@@ -512,7 +514,7 @@ void stmclk_init_sysclk(void)
 #endif
 
     /* disable all active clocks except HSI -> resets the clk configuration */
-    RCC->CR = (RCC_CR_HSION | RCC_CR_HSITRIM_4);
+    RCC->CR = (RCC_CR_HSION | RCC_CR_HSIDIV_1);
 
     if (IS_ACTIVE(CONFIG_CLOCK_ENABLE_MCO1)) {
         RCC->CFGR |= CLOCK_MCO1_SRC | CLOCK_MCO1_PRE;
@@ -529,17 +531,30 @@ void stmclk_init_sysclk(void)
         gpio_init(GPIO_PIN(PORT_C, 9), GPIO_OUT);
         gpio_init_af(GPIO_PIN(PORT_C, 9), GPIO_AF0);
     }
+#endif
 
     /* Enable HSE if required */
     if (IS_ACTIVE(CLOCK_ENABLE_HSE)) {
+        RCC->CR |= (RCC_CR_HSEBYP); //TODO
         RCC->CR |= (RCC_CR_HSEON);
         while (!(RCC->CR & RCC_CR_HSERDY)) {}
     }
 
     /* Enable PLL if required */
     if (IS_ACTIVE(CLOCK_ENABLE_PLL)) {
+        //TODO set fraction to 0?
          /* now we can safely configure and start the PLL */
-        RCC->PLLCFGR = (PLL_SRC | PLL_M | PLL_N | PLL_P | PLL_Q | PLL_R);
+        RCC->PLLCKSELR = (PLL_SRC | PLL_M);
+        RCC->PLLCFGR =
+            ( RCC_PLLCFGR_PLL1RGE_0 // search datasheet for PLL1RGE
+            //| RCC_PLLCFGR_PLL1VCOSEL
+            | RCC_PLLCFGR_DIVP1EN
+            | RCC_PLLCFGR_DIVQ1EN
+            | RCC_PLLCFGR_DIVR1EN
+            );
+        //RCC->PLL1FRACEN = 0;
+        //RCC->PLL1FRACR |= RCC_PLL1FRACR_FRACN1;
+        RCC->PLL1DIVR = (PLL_N | PLL_P | PLL_Q | PLL_R);
         RCC->CR |= (RCC_CR_PLLON);
         while (!(RCC->CR & RCC_CR_PLLRDY)) {}
     }
@@ -552,10 +567,12 @@ void stmclk_init_sysclk(void)
     }
     else if (IS_ACTIVE(CONFIG_USE_CLOCK_PLL)) {
         /* Enable PLLP as system clock */
-        RCC->CFGR |= (RCC_CFGR_SW_PLL);
-        while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL) {}
+        RCC->CFGR |= (RCC_CFGR_SW_PLL1);
+//while (1) {}
+        while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL1) {}
     }
 
+#if 0
     if (!IS_ACTIVE(CLOCK_ENABLE_HSI)) {
         /* Disable HSI only if not used */
         stmclk_disable_hsi();
@@ -596,6 +613,7 @@ void stmclk_init_sysclk(void)
         /* Use PLLSAI_P or PLLI2S_Q clock source */
         RCC->DCKCFGR2 |= RCC_DCKCFGR2_CK48MSEL;
     }
+#endif
 #endif
 
     irq_restore(is);

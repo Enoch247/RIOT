@@ -27,6 +27,9 @@
 #include "f2f4f7/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4)
 #include "g0g4/cfg_clock_default.h"
+#elif defined(CPU_FAM_STM32H7)
+//TODO: move this to cfg_clock_common_hx.h?
+#include "h7/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32C0)
 #include "c0/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32L0) || defined(CPU_FAM_STM32L1)
