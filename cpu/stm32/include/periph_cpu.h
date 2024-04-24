@@ -98,6 +98,10 @@ typedef struct {
     uint8_t dev;            /**< ADCx - 1 device used for the channel */
 #endif
     uint8_t chan;           /**< CPU ADC channel connected to the pin */
+#ifdef MODULE_PERIPH_DMA
+    dma_t dma;
+    int dma_chan;
+#endif
 } adc_conf_t;
 
 /**
@@ -106,6 +110,10 @@ typedef struct {
 typedef struct {
     gpio_t pin;             /**< pin connected to the line */
     uint8_t chan;           /**< DAC device used for this line */
+#ifdef MODULE_PERIPH_DMA
+    dma_t dma;
+    int dma_chan;
+#endif
 } dac_conf_t;
 
 /**

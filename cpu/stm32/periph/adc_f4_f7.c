@@ -23,19 +23,27 @@
 #include "irq.h"
 #include "mutex.h"
 #include "periph/adc.h"
+//#include "periph_conf.h"
+#include "periph/cpu_dma.h"
 #include "periph/vbat.h"
 #include "periph_conf.h"
+
+#if defined(MODULE_PERIPH_ADC_BURST) || defined(MODULE_PERIPH_ADC_CONT)
+#define ADC_DMA
+#endif
 
 /**
  * @brief   Maximum allowed ADC clock speed
  */
-#define MAX_ADC_SPEED           MHZ(12)
+#ifndef ADC_CLK_MAX
+#define ADC_CLK_MAX             MHZ(12)
+#endif
 
 /**
  * @brief   Maximum sampling time for each channel (480 cycles)
  *          T_CONV[µs] = (RESOLUTION[bits] + SMP[cycles]) / CLOCK_SPEED[MHz]
  */
-#define MAX_ADC_SMP             (7u)
+#define MAX_ADC_SMP             (1u)
 
 /**
  * @brief   Default VBAT undefined value
@@ -95,7 +103,7 @@ int adc_init(adc_t line)
     dev(line)->CR2 = ADC_CR2_ADON;
     /* set clock prescaler to get the maximal possible ADC clock value */
     for (clk_div = 2; clk_div < 8; clk_div += 2) {
-        if ((periph_apb_clk(APB2) / clk_div) <= MAX_ADC_SPEED) {
+        if ((periph_apb_clk(APB2) / clk_div) <= ADC_CLK_MAX) {
             break;
         }
     }
@@ -152,3 +160,162 @@ int32_t adc_sample(adc_t line, adc_res_t res)
 
     return sample;
 }
+
+#ifdef ADC_DMA
+static int _sample_dma(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg, bool circ)
+{
+    int result;
+    dma_t dma = adc_config[line].dma;
+    int dma_chan = adc_config[line].dma_chan;
+    volatile void *periph_addr = &(dev(line)->DR);
+    int dma_size = DMA_DATA_WIDTH_BYTE;
+
+    /* check if resolution is applicable */
+    if (res & 0x3) {
+        return -1;
+    }
+
+    /* calcualte the size of each DMA transfer */
+    switch (res)
+    {
+        case ADC_RES_6BIT:
+        case ADC_RES_8BIT:
+        dma_size = DMA_DATA_WIDTH_BYTE;
+        break;
+
+        case ADC_RES_10BIT:
+        case ADC_RES_12BIT:
+        case ADC_RES_14BIT:
+        case ADC_RES_16BIT:
+        dma_size = DMA_DATA_WIDTH_HALF_WORD;
+        break;
+    }
+
+    /* lock and power on the ADC device */
+    prep(line);
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_enable();
+    }
+
+    /* set resolution and conversion channel */
+    dev(line)->CR1 = res;
+    dev(line)->SQR3 = adc_config[line].chan;
+
+    dma_acquire(dma);
+
+    /* get DMA ready to receive data from ADC */
+    result = dma_configure(
+        dma, dma_chan, periph_addr, buf, count,
+        DMA_PERIPH_TO_MEM,
+        dma_size | DMA_INC_DST_ADDR |
+        ((circ)? DMA_CIRCULAR : 0) |
+        ((circ)? DMA_WITH_WAIT_HALF : 0)
+        );
+    if (result < 0)
+    {
+        // release locks and resources held
+        dma_release(dma);
+        done(line);
+
+        return -1;
+    }
+
+    dma_start(dma);
+
+    /* enable ADC to DMA */
+    dev(line)->CR2 |= ADC_CR2_DMA;
+
+    if (circ) {
+        /* enable DMA circular mode */
+        dev(line)->CR2 |= ADC_CR2_DDS;
+    }
+
+    /* set sample trigger source */
+    dev(line)->CR2 &= ~ADC_CR2_EXTSEL;
+    dev(line)->CR2 |= adc_trg << ADC_CR2_EXTSEL_Pos;
+
+    /* enable external trigger, and trigger on its rising edge */
+    dev(line)->CR2 &= ~ADC_CR2_EXTEN;
+    dev(line)->CR2 |= 1 << ADC_CR2_EXTEN_Pos;
+
+    return 0;
+}
+#endif /* ADC_DMA */
+
+#ifdef ADC_DMA
+static void _sample_dma_end(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+
+    /* disable external triggering of ADC */
+    dev(line)->CR2 &= ~ADC_CR2_EXTEN;
+
+    /* disable ADC to DMA */
+    dev(line)->CR2 &= ~ADC_CR2_DMA;
+
+    dma_stop(dma);
+    dma_release(dma);
+
+    /* check if this is the VBAT line */
+    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
+        vbat_disable();
+    }
+
+    /* power off and unlock device again */
+    done(line);
+}
+#endif /* ADC_DMA */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    return _sample_dma(line, res, buf, count, adc_trg, false);
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_BURST
+void adc_sample_burst_end(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+    dma_wait(dma);
+
+    _sample_dma_end(line);
+}
+#endif /* MODULE_PERIPH_ADC_BURST */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+int adc_sample_cont(adc_t line, adc_res_t res, void* buf, size_t count,
+    int adc_trg)
+{
+    return _sample_dma(line, res, buf, count, adc_trg, true);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_end(adc_t line)
+{
+    _sample_dma_end(line);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_wait(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+
+    dma_wait(dma);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */
+
+#ifdef MODULE_PERIPH_ADC_CONT
+void adc_sample_cont_wait_half(adc_t line)
+{
+    dma_t dma = adc_config[line].dma;
+
+    dma_wait_half(dma);
+}
+#endif /* MODULE_PERIPH_ADC_CONT */

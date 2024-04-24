@@ -55,6 +55,7 @@ typedef struct {
     uint8_t irqn;           /**< global IRQ channel */
     uint8_t channel_numof;  /**< number of channels, 0 is alias for
                                  @ref TIMER_CHANNEL_NUMOF */
+    uint8_t mms;            /**< timer's master mode selection */
 } timer_conf_t;
 
 #ifdef __cplusplus

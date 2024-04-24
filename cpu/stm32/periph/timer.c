@@ -126,6 +126,10 @@ int timer_init(tim_t tim, uint32_t freq, timer_cb_t cb, void *arg)
     /* generate an update event to apply our configuration */
     dev(tim)->EGR = TIM_EGR_UG;
 
+    /* set master mode selection */
+    dev(tim)->CR2 &= ~TIM_CR2_MMS;
+    dev(tim)->CR2 |= timer_config[tim].mms << TIM_CR2_MMS_Pos;
+
     /* enable the timer's interrupt */
     NVIC_EnableIRQ(timer_config[tim].irqn);
     /* reset the counter and start the timer */
@@ -242,11 +246,18 @@ int timer_set_periodic(tim_t tim, int channel, unsigned int value, uint8_t flags
 
     TIM_CHAN(tim, channel) = value;
 
-    /* clear spurious IRQs */
-    dev(tim)->SR &= ~(TIM_SR_CC1IF << channel);
+    /* enable IRQ as requested */
+    if (flags & TIM_FLAG_NO_IRQ) {
+        /* disable IRQ */
+        dev(tim)->DIER &= ~(TIM_DIER_CC1IE << channel);
+    }
+    else {
+        /* clear spurious IRQs */
+        dev(tim)->SR &= ~(TIM_SR_CC1IF << channel);
 
-    /* enable IRQ */
-    dev(tim)->DIER |= (TIM_DIER_CC1IE << channel);
+        /* enable IRQ */
+        dev(tim)->DIER |= (TIM_DIER_CC1IE << channel);
+    }
 
     if (flags & TIM_FLAG_RESET_ON_MATCH) {
         dev(tim)->ARR = value;

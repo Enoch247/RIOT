@@ -68,8 +68,8 @@ endif
 # The samd21 rtt busy loops for 180us every time an alarm is set or
 # the counter is read, this propagates and leads to timing errors
 # on ztimer_msec that are higher than > +-1msec.
-# The same goes for the fe310 rtt.
-ifneq (,$(filter samd21 fe310,$(CPU)))
+# The same goes for the fe310 and stm32 rtt.
+ifneq (,$(filter samd21 stm32 fe310,$(CPU)))
   USEMODULE += ztimer_no_periph_rtt
 endif
 

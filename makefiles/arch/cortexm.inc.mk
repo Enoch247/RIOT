@@ -62,16 +62,27 @@ CFLAGS += -DCPU_MODEL_$(call uppercase_and_underscore,$(CPU_MODEL))
 CFLAGS += -DCPU_CORE_$(call uppercase_and_underscore,$(CPU_CORE))
 
 # Add soft or hard FPU CFLAGS depending on the module
+# FIXME This whole if block may be rendundant to setting -mcpu above (see here:
+#       https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html), consider removing
+#       and using -mcpu or -march with "+extensions" to enable/disable use of
+#       fpu and other optional extensions. For example setting
+#       CPU_CORE = cortex-m7+nofp would tell RIOT the MCU has an m7 core without
+#       fpu
 ifneq (,$(filter cortexm_fpu,$(USEMODULE)))
   ifneq (,$(filter $(CPU_CORE),cortex-m33 cortex-m7))
+    # FIXME -mfpu=fpv5-sp-d16 disables double precision fpu
     CFLAGS_FPU ?= -mfloat-abi=hard -mfpu=fpv5-sp-d16
   else
+    # FIXME -mfpu=fpv4-sp-d16 is probably not needed here
     CFLAGS_FPU ?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
   endif
 else
   CFLAGS_FPU ?= -mfloat-abi=soft
 endif
 
+# FIXME using cortex-m4f to indicate m4 with the optional fpu implmented is
+#       inconsistent with how the m33 and m7 handle the optional fpu. Use
+#       cortex_fpu in FEATURES_USED or USEMODULE instead and remove this block?
 ifeq ($(CPU_CORE),cortex-m4f)
   MCPU = cortex-m4
 else
