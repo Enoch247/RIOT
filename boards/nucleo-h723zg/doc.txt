@@ -1,0 +1,11 @@
+/**
+@defgroup    boards_nucleo-h723zg STM32 Nucleo-H723ZG
+@ingroup     boards_common_nucleo144
+@brief       Support for the STM32 Nucleo-H723ZG
+
+## Overview
+
+The Nucleo-H723ZG is a board from ST's Nucleo family supporting ARM Cortex-M7
+STM32H723ZG microcontroller with 564KiB of RAM and 1 MiB of Flash.
+
+ */
