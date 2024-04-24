@@ -99,7 +99,6 @@
  */
 static void _gpio_init_ain(void)
 {
-return;
     uint32_t ahb_gpio_clocks;
 
     /* enable GPIO clock and save GPIO clock configuration */

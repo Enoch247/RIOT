@@ -58,11 +58,16 @@ static gpio_isr_ctx_t isr_ctx[EXTI_NUMOF];
 #define EXTI_REG_FTSR       (EXTI->FTSR1)
 #define EXTI_REG_PR         (EXTI->PR1)
 #define EXTI_REG_IMR        (EXTI_C2->IMR1)
-#else
+#elif defined(CPU_FAM_STM32H7)
 #define EXTI_REG_RTSR       (EXTI->RTSR)
 #define EXTI_REG_FTSR       (EXTI->FTSR)
 #define EXTI_REG_PR         (EXTI->PR)
 #define EXTI_REG_IMR        (EXTI->IMR1)
+#else
+#define EXTI_REG_RTSR       (EXTI->RTSR)
+#define EXTI_REG_FTSR       (EXTI->FTSR)
+#define EXTI_REG_PR         (EXTI->PR)
+#define EXTI_REG_IMR        (EXTI->IMR)
 #endif
 
 /**
