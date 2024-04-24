@@ -19,7 +19,9 @@
 #ifndef CLK_CLK_CONF_H
 #define CLK_CLK_CONF_H
 
-#if defined(CPU_FAM_STM32F0) || defined(CPU_FAM_STM32F1) || \
+#if defined(CPU_FAM_STM32C0)
+#include "c0/cfg_clock_default.h"
+#elif defined(CPU_FAM_STM32F0) || defined(CPU_FAM_STM32F1) || \
     defined(CPU_FAM_STM32F3)
 #include "f0f1f3/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32F2) || defined(CPU_FAM_STM32F4) || \
@@ -27,17 +29,17 @@
 #include "f2f4f7/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32G0) || defined(CPU_FAM_STM32G4)
 #include "g0g4/cfg_clock_default.h"
-#elif defined(CPU_FAM_STM32C0)
-#include "c0/cfg_clock_default.h"
+#elif defined(CPU_FAM_STM32H7)
+#include "h7/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32L0) || defined(CPU_FAM_STM32L1)
 #include "l0l1/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32L5) || \
       defined(CPU_FAM_STM32WB) || defined(CPU_FAM_STM32WL)
 #include "l4l5wx/cfg_clock_default.h"
-#elif defined(CPU_FAM_STM32U5)
-#include "u5/cfg_clock_default.h"
 #elif defined(CPU_FAM_STM32MP1)
 #include "mp1/cfg_clock_default.h"
+#elif defined(CPU_FAM_STM32U5)
+#include "u5/cfg_clock_default.h"
 #else
 #error "No clock configuration available"
 #endif

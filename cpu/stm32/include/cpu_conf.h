@@ -28,6 +28,9 @@
 #include "vendor/stm32f030x4.h"
 #elif defined(CPU_LINE_STM32MP157Cxx)
 #include "vendor/stm32mp157cxx_cm4.h"
+#elif CPU_FAM_STM32C0
+#include "stm32c0xx.h"
+#include "irqs/c0/irqs.h"
 #elif CPU_FAM_STM32F0
 #include "stm32f0xx.h"
 #include "irqs/f0/irqs.h"
@@ -49,12 +52,12 @@
 #elif CPU_FAM_STM32G0
 #include "stm32g0xx.h"
 #include "irqs/g0/irqs.h"
-#elif CPU_FAM_STM32C0
-#include "stm32c0xx.h"
-#include "irqs/c0/irqs.h"
 #elif CPU_FAM_STM32G4
 #include "stm32g4xx.h"
 #include "irqs/g4/irqs.h"
+#elif CPU_FAM_STM32H7
+#include "stm32h7xx.h"
+#include "irqs/h7/irqs.h"
 #elif CPU_FAM_STM32L0
 #include "stm32l0xx.h"
 #include "irqs/l0/irqs.h"
