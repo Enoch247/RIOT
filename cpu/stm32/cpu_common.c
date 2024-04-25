@@ -191,7 +191,7 @@ static volatile uint32_t* _rcc_dis_reg(bus_t bus)
     /* If MCU does not have separate set/clear bits. */
 #if RCC_REG_IS_ATOMIC == 0
     default:
-        return  _rcc_dis_reg(bus);
+        return _rcc_en_reg(bus);
 #else
     case BUS_NUMOF:
         assert(false);
