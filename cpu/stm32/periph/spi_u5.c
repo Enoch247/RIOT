@@ -36,7 +36,7 @@
 #include "periph/gpio.h"
 #include "periph/spi.h"
 #include "pm_layered.h"
-#include "stm32u585xx.h"
+#include "cpu_conf.h"
 #include "ztimer.h"
 
 #define ENABLE_DEBUG 0
@@ -51,7 +51,7 @@
 #define SPI_CR2_SETTINGS 0
 
 #define SPI_CFG2_SETTINGS (SPI_CFG2_AFCNTR)
-#define SPI_CFG1_SETTINGS (SPI_CFG1_CRCSIZE_Msk | (0x7 << SPI_CFG1_DSIZE_Pos))
+#define SPI_CFG1_SETTINGS ((0x7 << SPI_CFG1_DSIZE_Pos))
 /**
  * @brief   Allocate one lock per SPI device
  */
@@ -113,6 +113,9 @@ void spi_init(spi_t bus) {
   locks[bus] = (mutex_t)MUTEX_INIT_LOCKED;
   /* trigger pin initialization */
   spi_init_pins(bus);
+
+  while (!(RCC->CR & RCC_CR_D2CKRDY)) { };
+  RCC->D2CCIP1R |= RCC_D2CCIP1R_SPI123SEL_2;
 
   periph_clk_en(spi_config[bus].apbbus, spi_config[bus].rccmask);
   /* reset configuration */
@@ -220,7 +223,7 @@ void spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk) {
   DEBUG("[spi] acquire: requested clock: %" PRIu32
         " Hz, resulting clock: %" PRIu32 " Hz, BR prescaler: %u\n",
         clk, periph_apb_clk(spi_config[bus].apbbus) >> (br + 1), (unsigned)br);
-  uint32_t cfg1 = br << BR_SHIFT;
+  uint32_t cfg1 = SPI_CFG1_SETTINGS | (br << BR_SHIFT);
   uint32_t cr1 = 0;
   /* Settings to add to CR2 in addition to SPI_CR2_SETTINGS */
   uint32_t cfg2 = SPI_CFG2_SETTINGS;
@@ -251,6 +254,7 @@ void spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk) {
      configuration registers, CRCPOLY, UDRDR, part of SPI_AUTOCR register and
      IOLOCK bit in the
      SPI_CR1 register are write protected */
+  enable_spi(bus);
 }
 
 void spi_release(spi_t bus) {
@@ -287,18 +291,20 @@ static void _transfer_no_dma(spi_t bus, const void *out, void *in, size_t len) {
 
   // lower 16 bits = TSIZE
   // When these bits are changed by software, the SPI must be disabled. SPE = 0
-  dev(bus)->CR2 = (int16_t)len;
+  dev(bus)->CR2 = (uint16_t)len;
 
   /* we need to recast the data register to uint_8 to force 8-bit access */
   volatile uint8_t *TXDR = (volatile uint8_t *)&(dev(bus)->TXDR);
   volatile uint8_t *RXDR = (volatile uint8_t *)&(dev(bus)->RXDR);
 
+  dev(bus)->CR1 &= ~(SPI_CR1_CSUSP);
+
   /*To restart the internal
     state machine properly, SPI is strongly suggested to be disabled and
     re-enabled before next transaction starts despite its setting is not
     changed.*/
-  disable_spi(bus);
-  enable_spi(bus);
+  //disable_spi(bus);
+  //enable_spi(bus);
 
   if (dev(bus)->CFG2 & SPI_CFG2_MASTER) {
     assume(dev(bus)->CR1 & SPI_CR1_SPE);
@@ -331,7 +337,7 @@ static void _transfer_no_dma(spi_t bus, const void *out, void *in, size_t len) {
       inbuf[i] = *RXDR;
     }
   } else {
-    volatile uint16_t tx_remainder = len, rx_remainder = len;
+    uint16_t tx_remainder = len, rx_remainder = len;
 
     while ((tx_remainder > 0 || rx_remainder > 0)) {
       if (tx_remainder > 0 && dev(bus)->SR & SPI_SR_TXP) {
@@ -344,9 +350,9 @@ static void _transfer_no_dma(spi_t bus, const void *out, void *in, size_t len) {
         inbuf[len - rx_remainder] = *RXDR;
         rx_remainder--;
       }
-      if (dev(bus)->SR & SPI_SR_EOT) {
-        break;
-      }
+      //if (dev(bus)->SR & SPI_SR_EOT) {
+        //break;
+      //}
     }
   }
 
@@ -382,5 +388,4 @@ void spi_transfer_bytes(spi_t bus, spi_cs_t cs, bool cont, const void *out,
       gpio_set((gpio_t)cs);
     }
   }
-  // disable_spi(bus);
 }

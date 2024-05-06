@@ -114,6 +114,10 @@ extern "C" {
             #define APB3_PERIPH_EN              RCC->APB3ENR
 #endif
 
+#if     defined(CPU_FAM_STM32H7)
+            #define APB4_PERIPH_EN              RCC->APB4ENR
+#endif
+
 /* if CPU has AHB/AHB1 bus */
 #if     defined(AHBPERIPH_BASE) || \
         defined(CPU_FAM_STM32F3)
@@ -193,6 +197,9 @@ typedef enum {
 #endif
 #if defined(APB3_PERIPH_EN)
     APB3,           /**< APB3 bus */
+#endif
+#if defined(APB4_PERIPH_EN)
+    APB4,           /**< APB4 bus */
 #endif
 #if defined(AHB_PERIPH_EN)
     AHB,            /**< AHB bus */

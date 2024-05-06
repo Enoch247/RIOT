@@ -71,6 +71,8 @@ endif
 ifneq (,$(filter periph_spi,$(USEMODULE)))
   ifeq (u5,$(CPU_FAM))
     SRC += spi_$(CPU_FAM).c
+  else ifeq (h7,$(CPU_FAM))
+    SRC += spi_u5.c
   else
     SRC += spi_all.c
   endif

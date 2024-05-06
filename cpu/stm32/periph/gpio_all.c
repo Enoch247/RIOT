@@ -48,7 +48,8 @@ static gpio_isr_ctx_t isr_ctx[EXTI_NUMOF];
 #if defined(CPU_FAM_STM32L4) || defined(CPU_FAM_STM32WB) || \
     defined(CPU_FAM_STM32G4) || defined(CPU_FAM_STM32G0) || \
     defined(CPU_FAM_STM32L5) || defined(CPU_FAM_STM32U5) || \
-    defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32C0)
+    defined(CPU_FAM_STM32WL) || defined(CPU_FAM_STM32C0) || \
+    defined(CPU_FAM_STM32H7)
 #define EXTI_REG_RTSR       (EXTI->RTSR1)
 #define EXTI_REG_FTSR       (EXTI->FTSR1)
 #define EXTI_REG_PR         (EXTI->PR1)
@@ -266,6 +267,8 @@ int gpio_init_int(gpio_t pin, gpio_mode_t mode, gpio_flank_t flank,
     periph_clk_en(APB12, RCC_APBENR2_SYSCFGEN);
 #elif defined(CPU_FAM_STM32U5)
     periph_clk_en(APB3, RCC_APB3ENR_SYSCFGEN);
+#elif defined(CPU_FAM_STM32H7)
+    periph_clk_en(APB4, RCC_APB4ENR_SYSCFGEN);
 #else
     periph_clk_en(APB2, RCC_APB2ENR_SYSCFGEN);
 #endif
