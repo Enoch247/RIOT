@@ -442,4 +442,4 @@ endif
 
 # Set the common memory addresses for stm32 MCU family
 ROM_START_ADDR ?= 0x08000000
-RAM_START_ADDR ?= 0x20000000
+RAM_START_ADDR ?= 0x24000000

@@ -27,8 +27,9 @@
 #include "ztimer.h"
 #include "periph/vbat.h"
 
-#define SMP_MIN         (0x2) /*< Sampling time for slow channels
-                                  (0x2 = 4.5 ADC clock cycles) */
+#define SMP_MIN         ADC_SMPR1_SMP0 // this is actually the max
+//#define SMP_MIN         (0x2) /*< Sampling time for slow channels
+//                                  (0x2 = 4.5 ADC clock cycles) */
 #ifdef ADC1_COMMON
 #define ADC_INSTANCE    ADC1_COMMON
 #else
@@ -50,23 +51,31 @@ static mutex_t locks[ADC_DEVS];
 static inline ADC_TypeDef *dev(adc_t line)
 {
     switch (adc_config[line].dev) {
+#ifdef ADC1_BASE
+        case 0:
+            return (ADC_TypeDef *)(ADC1_BASE);
+            break;
+#endif
 #ifdef ADC2_BASE
         case 1:
             return (ADC_TypeDef *)(ADC2_BASE);
             break;
 #endif
-#ifdef ADC34_COMMON
+#ifdef ADC3_BASE
         case 2:
             return (ADC_TypeDef *)(ADC3_BASE);
             break;
+#endif
+#ifdef ADC4_BASE
         case 3:
             return (ADC_TypeDef *)(ADC4_BASE);
             break;
 #endif
-        default:
-            return (ADC_TypeDef *)(ADC1_BASE);
-            break;
     }
+
+    // should never reach here
+    assert(false);
+    return NULL;
 }
 
 static inline void prep(adc_t line)
@@ -96,55 +105,65 @@ int adc_init(adc_t line)
         return -1;
     }
 
+    RCC->D3CCIPR |= RCC_D3CCIPR_ADCSEL_1;
+
     /* Lock device and enable its peripheral clock */
     prep(line);
 /* On some STM32F3 ADC are grouped by paire (ADC12EN or ADC34EN) so
  * enable the clock only once here. */
-#if defined(RCC_AHBENR_ADC12EN)
+//#if defined(RCC_AHBENR_ADC12EN)
     if (adc_config[line].dev <= 1) {
-        periph_clk_en(AHB, RCC_AHBENR_ADC12EN);
+        periph_clk_en(AHB1, RCC_AHB1ENR_ADC12EN);
     }
-#endif
-#if defined(RCC_AHBENR_ADC34EN)
+//#endif
+//#if defined(RCC_AHBENR_ADC34EN)
     if (adc_config[line].dev >= 2) {
-        periph_clk_en(AHB, RCC_AHBENR_ADC34EN);
+        periph_clk_en(AHB4, RCC_AHB4ENR_ADC3EN);
     }
-#endif
+//#endif
 
+#if 0
     /* Setting ADC clock to HCLK/1 is only allowed if AHB clock
      * prescaler is 1 */
-    if (!(RCC->CFGR & RCC_CFGR_HPRE_3)) {
+    if (!(RCC->CFGR & RCC_D1CFGR_HPRE_3)) {
         /* set ADC clock to HCLK/1 */
         if (adc_config[line].dev <= 1) {
             ADC_INSTANCE->CCR |= ADC_CCR_CKMODE_0;
         }
-#ifdef ADC34_COMMON
+//#ifdef ADC34_COMMON
         if (adc_config[line].dev >= 2) {
-            ADC34_COMMON->CCR |= ADC_CCR_CKMODE_0;
+            ADC3_COMMON->CCR |= ADC_CCR_CKMODE_0;
         }
-#endif
+//#endif
     }
     else {
         /* set ADC clock to HCLK/2 otherwise */
         if (adc_config[line].dev <= 1) {
             ADC_INSTANCE->CCR |= ADC_CCR_CKMODE_1;
         }
-#ifdef ADC34_COMMON
+//#ifdef ADC34_COMMON
         if (adc_config[line].dev >= 2) {
-            ADC34_COMMON->CCR |= ADC_CCR_CKMODE_1;
+            ADC3_COMMON->CCR |= ADC_CCR_CKMODE_1;
         }
-#endif
+//#endif
     }
+#else
+ADC_INSTANCE->CCR = ADC_CCR_CKMODE_0;
+ADC3_COMMON->CCR = ADC_CCR_CKMODE_0;
+#endif
 
     /* Configure the pin */
     if (adc_config[line].pin != GPIO_UNDEF) {
         gpio_init_analog(adc_config[line].pin);
     }
+
     /* Init ADC line only if it wasn't already initialized */
     if (!(dev(line)->CR & ADC_CR_ADEN)) {
+        // take ADC out of deep sleep
+        dev(line)->CR &= ~(ADC_CR_DEEPPWD);
         /* Enable ADC internal voltage regulator and wait for startup period */
         dev(line)->CR |= ADC_CR_ADVREGEN;
-#if IS_USED(MODULE_ZTIMER_USEC)
+#if IS_USED(MODULE_ZTIMER_USEC) && 0
         ztimer_sleep(ZTIMER_USEC, ADC_T_ADCVREG_STUP_US);
 #else
         /* to avoid using ZTIMER_USEC unless already included round up the
@@ -152,7 +171,7 @@ int adc_init(adc_t line)
         ztimer_sleep(ZTIMER_MSEC, 1);
 #endif
 
-        if (dev(line)->DIFSEL & (1 << adc_config[line].chan)) {
+        if (false) {
             /* Configure calibration for differential inputs */
             dev(line)->CR |= ADC_CR_ADCALDIF;
         }
@@ -160,6 +179,9 @@ int adc_init(adc_t line)
             /* Configure calibration for single ended inputs */
             dev(line)->CR &= ~ADC_CR_ADCALDIF;
         }
+
+        // enable linearity cal, and turn on boost supply
+        dev(line)->CR |= ADC_CR_ADCALLIN | ADC_CR_BOOST;
 
         /* Start automatic calibration and wait for it to complete */
         dev(line)->CR |= ADC_CR_ADCAL;
@@ -175,6 +197,17 @@ int adc_init(adc_t line)
         /* Set sequence length to 1 conversion */
         dev(line)->SQR1 |= (0 & ADC_SQR1_L);
     }
+
+    // Enable the ADC channel's analog switch
+    #if defined(ADC_VER_V5_V90)
+    if (adc_config[line].dev < 2)
+    {
+        dev(line)->PCSEL_RES0 |= ADC_PCSEL_PCSEL_0 << adc_config[line].chan;
+        //dev(line)->PCSEL_RES0 |= ADC_PCSEL_PCSEL; //TODO: rm
+    }
+    #else
+    dev(line)->PCSEL |= ADC_PCSEL_PCSEL_0 << adc_config[line].chan;
+    #endif
 
     /* Configure sampling time for the given channel */
     if (adc_config[line].chan < 10) {
@@ -194,10 +227,12 @@ int32_t adc_sample(adc_t line, adc_res_t res)
 {
     int sample;
 
+#if 0
     /* Check if resolution is applicable */
     if (res & 0x3) {
         return -1;
     }
+#endif
 
     /* Lock and power on the ADC device */
     prep(line);
@@ -208,8 +243,32 @@ int32_t adc_sample(adc_t line, adc_res_t res)
     }
 
     /* Set resolution */
-    dev(line)->CFGR &= ~ADC_CFGR_RES;
-    dev(line)->CFGR |= res;
+    if (adc_config[line].dev < 2)
+    {
+        dev(line)->CFGR &= ~ADC_CFGR_RES;
+        dev(line)->CFGR |= res;
+    }
+    else
+    {
+        dev(line)->CFGR &= ~ADC3_CFGR_RES;
+        switch (res)
+        {
+            case ADC_RES_12BIT:
+            break;
+
+            case ADC_RES_10BIT:
+            dev(line)->CFGR |= 0x01 << ADC3_CFGR_RES_Pos;
+            break;
+
+            case ADC_RES_8BIT:
+            dev(line)->CFGR |= 0x02 << ADC3_CFGR_RES_Pos;
+            break;
+
+            case ADC_RES_6BIT:
+            dev(line)->CFGR |= 0x03 << ADC3_CFGR_RES_Pos;
+            break;
+        }
+    }
 
     /* Specify channel for regular conversion */
     dev(line)->SQR1 = adc_config[line].chan << ADC_SQR1_SQ1_Pos;
@@ -217,6 +276,7 @@ int32_t adc_sample(adc_t line, adc_res_t res)
     /* Start conversion and wait for it to complete */
     dev(line)->CR |= ADC_CR_ADSTART;
     while (!(dev(line)->ISR & ADC_ISR_EOC)) {}
+    //while (!(dev(line)->CR & ADC_CR_ADSTART)) {}
 
     /* Read the sample */
     sample = (int)dev(line)->DR;
@@ -242,10 +302,12 @@ int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
     volatile void *periph_addr = &(dev(line)->DR);
     int dma_size = DMA_DATA_WIDTH_BYTE;
 
+#if 0
     /* Check if resolution is applicable */
     if (res & 0x3) {
         return -1;
     }
+#endif
 
     /* Calcualte the size of each DMA transfer */
     switch (res)

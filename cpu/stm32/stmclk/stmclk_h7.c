@@ -475,7 +475,7 @@ void stmclk_init_sysclk(void)
     /* disable any interrupts. Global interrupts could be enabled if this is
      * called from some kind of bootloader...  */
     unsigned is = irq_disable();
-    //RCC->CR = 0;
+    RCC->CR = 0;
 
     /* enable HSI clock for the duration of initialization */
     stmclk_enable_hsi();
@@ -489,7 +489,7 @@ void stmclk_init_sysclk(void)
     RCC->CFGR = (RCC_CFGR_SW_HSI);
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {}
 
-#if 0
+#if 1
     /* Flash config */
     //FLASH->ACR = FLASH_ACR_CONFIG;
     FLASH->ACR = FLASH_ACR_LATENCY_2WS;
@@ -535,7 +535,7 @@ void stmclk_init_sysclk(void)
 
     /* Enable HSE if required */
     if (IS_ACTIVE(CLOCK_ENABLE_HSE)) {
-        RCC->CR |= (RCC_CR_HSEBYP); //TODO
+        //RCC->CR |= (RCC_CR_HSEBYP); //TODO
         RCC->CR |= (RCC_CR_HSEON);
         while (!(RCC->CR & RCC_CR_HSERDY)) {}
     }
@@ -568,9 +568,10 @@ void stmclk_init_sysclk(void)
     else if (IS_ACTIVE(CONFIG_USE_CLOCK_PLL)) {
         /* Enable PLLP as system clock */
         RCC->CFGR |= (RCC_CFGR_SW_PLL1);
-//while (1) {}
         while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL1) {}
     }
+
+//while(1);
 
 #if 0
     if (!IS_ACTIVE(CLOCK_ENABLE_HSI)) {

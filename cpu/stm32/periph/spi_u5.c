@@ -45,8 +45,8 @@
 /**
  * @brief   Number of bits to shift the BR value in the CR1 register
  */
-#define BR_SHIFT (27U)
-#define BR_MAX (7U)
+#define BR_SHIFT        (SPI_CFG1_MBR_Pos)
+#define BR_MAX          (SPI_CFG1_MBR_Msk >> SPI_CFG1_MBR_Pos)
 
 #define SPI_CR2_SETTINGS 0
 
@@ -70,7 +70,7 @@ static uint8_t prescalers[SPI_NUMOF];
 static inline SPI_TypeDef *dev(spi_t bus) { return spi_config[bus].dev; }
 
 static uint8_t _get_prescaler(const spi_conf_t *conf, uint32_t clock) {
-  uint32_t bus_clock = periph_apb_clk(conf->apbbus);
+  uint32_t bus_clock = CLOCK_HSI; //periph_apb_clk(conf->apbbus);
 
   uint8_t prescaler = 0;
   uint32_t prescaled_clock = bus_clock >> 1;
