@@ -276,7 +276,7 @@ static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
 /*        size = DS2433_EEPROM_SIZE - address;*/
 /*    }*/
 
-    onewire_aquire(bus);
+    //onewire_aquire(bus);
 
     res = onewire_select(bus, NULL);
     if (res < 0)

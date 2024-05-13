@@ -291,7 +291,7 @@ static void _transfer_no_dma(spi_t bus, const void *out, void *in, size_t len) {
 
   // lower 16 bits = TSIZE
   // When these bits are changed by software, the SPI must be disabled. SPE = 0
-  dev(bus)->CR2 = (uint16_t)len;
+  //dev(bus)->CR2 = (uint16_t)len;
 
   /* we need to recast the data register to uint_8 to force 8-bit access */
   volatile uint8_t *TXDR = (volatile uint8_t *)&(dev(bus)->TXDR);
@@ -303,8 +303,10 @@ static void _transfer_no_dma(spi_t bus, const void *out, void *in, size_t len) {
     state machine properly, SPI is strongly suggested to be disabled and
     re-enabled before next transaction starts despite its setting is not
     changed.*/
-  //disable_spi(bus);
-  //enable_spi(bus);
+  dev(bus)->CFG2 |= SPI_CFG2_AFCNTR;
+  disable_spi(bus);
+  dev(bus)->CR2 = (uint16_t)len;
+  enable_spi(bus);
 
   if (dev(bus)->CFG2 & SPI_CFG2_MASTER) {
     assume(dev(bus)->CR1 & SPI_CR1_SPE);

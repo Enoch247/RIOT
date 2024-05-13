@@ -35,6 +35,8 @@ static void _write_pull_cb(soft_onewire_t *dev);
 static void _write_0_release_cb(soft_onewire_t *dev);
 static void _write_1_release_cb(soft_onewire_t *dev);
 
+#if 0
+
 /* drive the bus high to power any bus powered devices */
 static void _bus_power(soft_onewire_t *dev)
 {
@@ -75,6 +77,43 @@ static bool _bus_sample(soft_onewire_t *dev)
 
     return gpio_read(pin);
 }
+
+#else
+
+/* drive the bus high to power any bus powered devices */
+static void _bus_power(soft_onewire_t *dev)
+{
+    gpio_t pin = dev->params->tx_pin;
+
+    gpio_clear(pin);
+}
+
+/* pull the bus low */
+static void _bus_pull(soft_onewire_t *dev)
+{
+    gpio_t pin = dev->params->tx_pin;
+
+    gpio_set(pin);
+}
+
+/* release the bus low, allow it to idle high unless another device is holding
+   it low */
+static void _bus_release(soft_onewire_t *dev)
+{
+    gpio_t pin = dev->params->tx_pin;
+
+    gpio_clear(pin);
+}
+
+/* sample the bus - returns true if the line is high */
+static bool _bus_sample(soft_onewire_t *dev)
+{
+    gpio_t pin = dev->params->rx_pin;
+
+    return gpio_read(pin);
+}
+
+#endif
 
 /* schedule the next timer callback */
 static void _schedule(soft_onewire_t *dev, soft_onewire_timer_cb_t cb,
@@ -308,6 +347,9 @@ static int _init(void *lldev, const void *params)
 #else
     dev->timer.arg = dev;
 #endif
+
+    gpio_init(dev->params->rx_pin, GPIO_IN);
+    gpio_init(dev->params->tx_pin, GPIO_OUT);
 
     _bus_power(dev);
 

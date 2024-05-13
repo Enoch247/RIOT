@@ -54,7 +54,8 @@ typedef void (*soft_onewire_timer_cb_t)(soft_onewire_t*);
  * @brief   Soft 1-Wire configuration parameters
  */
 typedef struct {
-    gpio_t pin;                 /**< GPIO pin the bus is connected to */
+    gpio_t tx_pin;              /**< GPIO pin the bus is connected to */
+    gpio_t rx_pin;              /**< GPIO pin the bus is connected to */
     gpio_mode_t pin_imode;      /**< GPIO pin input mode */
 #ifdef MODULE_SOFT_ONEWIRE_HWTIMER
     tim_t timer;                /**< peripheral timer that driver should use */

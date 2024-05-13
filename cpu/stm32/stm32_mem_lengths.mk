@@ -208,7 +208,8 @@ else ifeq ($(STM32_TYPE), G)
   endif
 else ifeq ($(STM32_TYPE), H)
   ifeq ($(STM32_MODEL), 723)
-    RAM_LEN = 564K
+#    RAM_LEN = 564K TODO
+    RAM_LEN = 320K
   endif
 else ifeq ($(STM32_TYPE), L)
   ifeq ($(STM32_FAMILY), 0)

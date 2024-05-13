@@ -31,9 +31,9 @@
 #define ADC_DMA
 #endif
 
-#define SMP_MIN         ADC_SMPR1_SMP0 // this is actually the max
-//#define SMP_MIN         (0x2) /*< Sampling time for slow channels
-//                                  (0x2 = 4.5 ADC clock cycles) */
+//#define SMP_MIN         ADC_SMPR1_SMP0 // this is actually the max
+#define SMP_MIN         (0x2) /*< Sampling time for slow channels
+                                  (0x2 = 4.5 ADC clock cycles) */
 #ifdef ADC1_COMMON
 #define ADC_INSTANCE    ADC1_COMMON
 #else
