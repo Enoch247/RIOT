@@ -50,8 +50,9 @@
 
 #define SPI_CR2_SETTINGS 0
 
-#define SPI_CFG2_SETTINGS (SPI_CFG2_AFCNTR)
+#define SPI_CFG2_SETTINGS (SPI_CFG2_MASTER | SPI_CFG2_AFCNTR)
 #define SPI_CFG1_SETTINGS ((0x7 << SPI_CFG1_DSIZE_Pos))
+
 /**
  * @brief   Allocate one lock per SPI device
  */
@@ -122,7 +123,7 @@ void spi_init(spi_t bus) {
   dev(bus)->CR1 = 0;
   dev(bus)->CFG1 = SPI_CFG1_SETTINGS;
   dev(bus)->CR2 = SPI_CR2_SETTINGS;
-  dev(bus)->CFG2 = SPI_CFG2_MASTER;
+  dev(bus)->CFG2 = SPI_CFG2_SETTINGS;
   periph_clk_dis(spi_config[bus].apbbus, spi_config[bus].rccmask);
 }
 
@@ -259,9 +260,10 @@ void spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk) {
 
 void spi_release(spi_t bus) {
   /* disable device and release lock */
+  dev(bus)->CFG2 = SPI_CFG2_SETTINGS;
   disable_spi(bus);
   dev(bus)->CR2 = SPI_CR2_SETTINGS; /* Clear the DMA and SSOE flags */
-  dev(bus)->CFG2 = 0;
+  //dev(bus)->CFG2 = SPI_CFG2_SETTINGS;
   periph_clk_dis(spi_config[bus].apbbus, spi_config[bus].rccmask);
 #ifdef STM32_PM_STOP
   /* unblock STOP mode */
