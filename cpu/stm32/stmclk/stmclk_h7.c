@@ -492,7 +492,15 @@ void stmclk_init_sysclk(void)
 #if 1
     /* Flash config */
     //FLASH->ACR = FLASH_ACR_CONFIG;
-    FLASH->ACR = FLASH_ACR_LATENCY_2WS;
+    FLASH->ACR = FLASH_ACR_LATENCY_3WS;
+
+    // enable internal LDO power supply
+    PWR->CR3 |= PWR_CR3_LDOEN;
+    while (!(PWR->CSR1 & PWR_CSR1_ACTVOSRDY)) {}
+
+    // set voltage sacaling to allow max clock speed
+    PWR->D3CR &= ~PWR_D3CR_VOS;
+    while (!(PWR->D3CR & PWR_D3CR_VOSRDY)) {}
 
     /* Enable Over-Drive if HCLK > 168MHz on F4 or HCLK > 180MHz on F7 */
 #if defined(CPU_FAM_STM32F4) && defined(PWR_CR_ODEN)

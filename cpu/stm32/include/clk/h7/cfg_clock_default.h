@@ -70,9 +70,9 @@ extern "C" {
 
 
 #if CLOCK_HSE == MHZ(8)
-    #define CONFIG_CLOCK_PLL1_M              4  //(3)   //(4)
-    #define CONFIG_CLOCK_PLL1_N              275//(117) //(275)
-    #define CONFIG_CLOCK_PLL1_P              2//(1)
+    #define CONFIG_CLOCK_PLL1_M              4
+    #define CONFIG_CLOCK_PLL1_N              275
+    #define CONFIG_CLOCK_PLL1_P              1
     #define CONFIG_CLOCK_PLL1_Q              4
     #define CONFIG_CLOCK_PLL1_R              2
 #elif CLOCK_HSI == MHZ(64)
