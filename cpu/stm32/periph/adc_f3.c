@@ -152,8 +152,17 @@ int adc_init(adc_t line)
 //#endif
     }
 #else
-ADC_INSTANCE->CCR = ADC_CCR_CKMODE_0;
-ADC3_COMMON->CCR = ADC_CCR_CKMODE_0;
+
+    // set ADC1/2 to adc_sclk/4 = 34.375 MHz (50 MHz max)
+    // adc_sclk = core clock if HPRE = 1, otherwise adc_sclk = core clock/2
+    // ADC1/2 further divides the clock it is given by 2
+    static_assert(CLOCK_CORECLOCK == MHZ(550));
+    static_assert( (CLOCK_CORECLOCK / CLOCK_AHB) > 1 );
+    ADC_INSTANCE->CCR = ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0;
+
+    // set ADC3 to AHB/4 = 68.75 MHz (75 MHz max)
+    static_assert(CLOCK_AHB == MHZ(275));
+    ADC3_COMMON->CCR = ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0;
 #endif
 
     /* Configure the pin */
@@ -213,12 +222,17 @@ ADC3_COMMON->CCR = ADC_CCR_CKMODE_0;
     dev(line)->PCSEL |= ADC_PCSEL_PCSEL_0 << adc_config[line].chan;
     #endif
 
+    // sample time to use
+    // ADC1/2 : (1/34.375) uS * (7.5+16.5) samples = 0.698182 uSec/conversion
+    // ADC3   : (1/68.75) uS * (12.5+47.5) samples = 0.872727 uSec/conversion
+    const unsigned smp = (adc_config[line].dev < 2) ? 3 : 4;
+
     /* Configure sampling time for the given channel */
     if (adc_config[line].chan < 10) {
-        dev(line)->SMPR1 =  (SMP_MIN << (adc_config[line].chan * 3));
+        dev(line)->SMPR1 |= (smp << (adc_config[line].chan * 3));
     }
     else {
-        dev(line)->SMPR2 =  (SMP_MIN << ((adc_config[line].chan - 10) * 3));
+        dev(line)->SMPR2 |= (smp << ((adc_config[line].chan - 10) * 3));
     }
 
     /* Power off and unlock device again */
@@ -392,11 +406,26 @@ static int _sample_dma(adc_t line, adc_res_t res, void* buf, size_t count,
     /* enable ADC to DMA */
     if (circ)
     {
-        dev(line)->CFGR |= ADC_CFGR_DMNGT;
+        if (adc_config[line].dev < 2)
+        {
+            dev(line)->CFGR |= ADC_CFGR_DMNGT;
+        }
+        else
+        {
+            dev(line)->CFGR |= ADC3_CFGR_DMAEN | ADC3_CFGR_DMACFG;
+        }
     }
     else
     {
-        dev(line)->CFGR |= ADC_CFGR_DMNGT_0;
+        if (adc_config[line].dev < 2)
+        {
+            dev(line)->CFGR |= ADC_CFGR_DMNGT_0;
+        }
+        else
+        {
+            dev(line)->CFGR &= ~ADC3_CFGR_DMACFG;
+            dev(line)->CFGR |= ADC3_CFGR_DMAEN;
+        }
     }
 
     /* Set sample trigger source */
@@ -419,11 +448,24 @@ static void _sample_dma_end(adc_t line)
 {
     dma_t dma = adc_config[line].dma;
 
+    /* stop ADC */
+    dev(line)->CR |= ADC_CR_ADSTP;
+
+    /* wait until ADC is stopped */
+    while (dev(line)->CR & ADC_CR_ADSTP);
+
     /* Disable external triggering of ADC */
     dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
 
     /* disable ADC to DMA */
-    dev(line)->CFGR &= ~ADC_CFGR_DMNGT;
+    if (adc_config[line].dev < 2)
+    {
+        dev(line)->CFGR &= ~ADC_CFGR_DMNGT;
+    }
+    else
+    {
+        dev(line)->CFGR &= ~ADC3_CFGR_DMAEN;
+    }
 
     dma_stop(dma);
     dma_release(dma);
@@ -442,85 +484,7 @@ static void _sample_dma_end(adc_t line)
 int adc_sample_burst(adc_t line, adc_res_t res, void* buf, size_t count,
     int adc_trg)
 {
-    int result;
-    dma_t dma = adc_config[line].dma;
-    int dma_chan = adc_config[line].dma_chan;
-    volatile void *periph_addr = &(dev(line)->DR);
-    int dma_size = DMA_DATA_WIDTH_BYTE;
-
-#if 0
-    /* Check if resolution is applicable */
-    if (res & 0x3) {
-        return -1;
-    }
-#endif
-
-    /* Calculate the size of each DMA transfer */
-    switch (res)
-    {
-        case ADC_RES_6BIT:
-        case ADC_RES_8BIT:
-        dma_size = DMA_DATA_WIDTH_BYTE;
-        break;
-
-        case ADC_RES_10BIT:
-        case ADC_RES_12BIT:
-        case ADC_RES_14BIT:
-        case ADC_RES_16BIT:
-        dma_size = DMA_DATA_WIDTH_HALF_WORD;
-        break;
-    }
-
-    /* Lock and power on the ADC device */
-    prep(line);
-
-    /* check if this is the VBAT line */
-    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
-        vbat_enable();
-    }
-
-    /* Set resolution */
-    dev(line)->CFGR &= ~ADC_CFGR_RES;
-    dev(line)->CFGR |= res;
-
-    /* Specify channel for regular conversion */
-    dev(line)->SQR1 = adc_config[line].chan << ADC_SQR1_SQ1_Pos;
-
-    dma_acquire(dma);
-
-    /* Get DMA ready to receive data from ADC */
-    result = dma_configure(
-        dma, dma_chan, periph_addr, buf, count,
-        DMA_PERIPH_TO_MEM,
-        dma_size | DMA_INC_DST_ADDR
-        );
-    if (result < 0)
-    {
-        // release locks and resources held
-        dma_release(dma);
-        done(line);
-
-        return -1;
-    }
-
-    dma_start(dma);
-
-    /* Enable ADC to DMA */
-    dev(line)->CFGR |= ADC_CFGR_DMAEN;
-    //dev(line)->CFGR |= ADC_CFGR_DMACFG; // DMA circular mode
-
-    /* Set sample trigger source */
-    dev(line)->CFGR &= ~ADC_CFGR_EXTSEL;
-    dev(line)->CFGR |= adc_trg << ADC_CFGR_EXTSEL_Pos;
-
-    /* Enable external trigger, and trigger on its rising edge */
-    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
-    dev(line)->CFGR |= 1 << ADC_CFGR_EXTEN_Pos;
-
-    /* Enable conversions */
-    dev(line)->CR |= ADC_CR_ADSTART;
-
-    return 0;
+    return _sample_dma(line, res, buf, count, adc_trg, false);
 }
 #endif /* MODULE_PERIPH_ADC_BURST */
 
@@ -529,22 +493,8 @@ void adc_sample_burst_end(adc_t line)
 {
     dma_t dma = adc_config[line].dma;
     dma_wait(dma);
-    dma_stop(dma);
-    dma_release(dma);
 
-    /* Disable external triggering of ADC */
-    dev(line)->CFGR &= ~ADC_CFGR_EXTEN;
-
-    /* Disable ADC to DMA */
-    dev(line)->CFGR &= ~ADC_CFGR_DMAEN;
-
-    /* check if this is the VBAT line */
-    if (IS_USED(MODULE_PERIPH_VBAT) && line == VBAT_ADC) {
-        vbat_disable();
-    }
-
-    /* Power off and unlock device again */
-    done(line);
+    _sample_dma_end(line);
 }
 #endif /* MODULE_PERIPH_ADC_BURST */
 
