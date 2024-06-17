@@ -37,6 +37,10 @@
 extern "C" {
 #endif
 
+#if !defined(IWDG) && defined(IWDG1)
+#define IWDG                        (IWDG1)
+#endif
+
 #define MAX_RELOAD                (4096U)
 #define MAX_PRESCALER             (6U)
 #define IWDG_STEP_MS              ((4U * US_PER_MS * MAX_RELOAD) / CLOCK_LSI)
