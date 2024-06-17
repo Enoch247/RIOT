@@ -194,7 +194,11 @@ int adc_init(adc_t line)
         }
 
         // enable linearity cal, and turn on boost supply
-        dev(line)->CR |= ADC_CR_ADCALLIN | ADC_CR_BOOST;
+        // TODO: set boost level according to ADC clock speed
+        if (adc_config[line].dev < 2)
+        {
+            dev(line)->CR |= ADC_CR_ADCALLIN | ADC_CR_BOOST;
+        }
 
         /* Start automatic calibration and wait for it to complete */
         dev(line)->CR |= ADC_CR_ADCAL;
