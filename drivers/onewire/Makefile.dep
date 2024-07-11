@@ -1,3 +1,2 @@
-USEMODULE += bitfield
 USEMODULE += checksum
 USEMODULE += fmt

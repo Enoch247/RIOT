@@ -10,8 +10,6 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
-#define FAMILIY_CODE 0x23
-
 //TODO: consolidate these two?
 #define PAGE_SIZE       32 // 32 bytes
 #define SCRATCHPAD_SIZE 32 // 32 bytes
@@ -43,7 +41,7 @@ static int _aquire(ds2433_t *dev)
 
     onewire_aquire(bus);
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res == -ENXIO)
     {
         return res;
@@ -65,7 +63,8 @@ static int _release_and_return(ds2433_t *dev, int rtnval)
     return rtnval;
 }
 
-int ds2433_init(ds2433_t *dev, const ds2433_params_t *params)
+int ds2433_init(ds2433_t *dev, const ds2433_params_t *params,
+    const onewire_rom_t *id)
 {
     int res;
     onewire_t *bus = params->bus;
@@ -79,6 +78,9 @@ int ds2433_init(ds2433_t *dev, const ds2433_params_t *params)
 /*    }*/
 
     dev->params = params;
+    dev->id = id;
+
+#if 0
 
     res = _aquire(dev);
     if (res < 0)
@@ -88,13 +90,13 @@ int ds2433_init(ds2433_t *dev, const ds2433_params_t *params)
 
     // invalidate the id_rom
     //TODO: check returned of onewire_read_rom() instead
-    id_rom.u8[0] = !FAMILIY_CODE;
+    id_rom.u8[0] = ~DS2433_FAMILY_CODE;
 
     // read the id_rom
     onewire_read_rom(bus, &id_rom);
 
     // validate the id_rom
-    if (onewire_rom_family_code(&id_rom) != FAMILIY_CODE)
+    if (onewire_rom_family_code(&id_rom) != DS2433_FAMILY_CODE)
     {
         return _release_and_return(dev, -ENODEV);
     }
@@ -110,6 +112,10 @@ int ds2433_init(ds2433_t *dev, const ds2433_params_t *params)
 #endif
 
     return _release_and_return(dev, 0);
+
+#else
+    return 0;
+#endif
 }
 
 int ds2433_read(ds2433_t *dev, uint16_t address, void* buf, size_t size)
@@ -127,7 +133,7 @@ int ds2433_read(ds2433_t *dev, uint16_t address, void* buf, size_t size)
 
     onewire_aquire(bus);
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res < 0)
     {
         onewire_release(bus);
@@ -152,7 +158,7 @@ static int _read_scratchpad(ds2433_t *dev, void* buf, size_t size)
 
     //TODO: check size param
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res < 0)
     {
         onewire_release(bus);
@@ -191,7 +197,7 @@ static int _write_scratchpad(ds2433_t *dev, uint16_t address, const void* buf,
     DEBUG("writing page %u adress 0x%04x to 0x%04x\n",
         page, address, end_address);
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res < 0)
     {
         onewire_release(bus);
@@ -241,7 +247,7 @@ static int _copy_scratchpad(ds2433_t *dev)
 
     DEBUG("%s: key = 0x%02x%02x%02x\n", DEBUG_FUNC, key[0], key[1], key[2]);
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res < 0)
     {
         onewire_release(bus);//TODO: rm
@@ -278,7 +284,7 @@ static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
 
     //onewire_aquire(bus);
 
-    res = onewire_select(bus, NULL);
+    res = onewire_select(bus, dev->id);
     if (res < 0)
     {
         onewire_release(bus);

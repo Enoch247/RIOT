@@ -87,7 +87,7 @@ int onewire_select(onewire_t *bus, const onewire_rom_t *rom)
     }
 
     if (rom) {
-        res = onewire_write_byte(bus, ONEWIRE_ROM_SKIP);
+        res = onewire_write_byte(bus, ONEWIRE_ROM_MATCH);
         if (res < 0) {
             return res;
         }
@@ -201,6 +201,8 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
     int pos = 1;
     for (unsigned i = 0; i < sizeof(rom->u8) * 8; i++) {
         uint8_t bits;
+        const unsigned byte = i / 8;
+        const uint8_t mask = 1 << (i % 8);
 
         /* Read two bits from the bus. */
         res = _read_bits(bus, &bits, 2);
@@ -220,7 +222,7 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         const bool conflict = (bits & 3) == 0;
         if (conflict) {
             if (pos < ld) {
-                bits = (bf_isset(rom->u8, i)) ? 1 : 0;
+                bits = (rom->u8[byte] & mask) ? 1 : 0;
                 if (bits == 0) {
                     marker = pos;
                 }
@@ -241,10 +243,10 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         }
 
         if (bits & 1) {
-            bf_set(rom->u8, i);
+            rom->u8[byte] |= mask;
         }
         else {
-            bf_unset(rom->u8, i);
+            rom->u8[byte] &= ~mask;
         }
 
         pos++;
