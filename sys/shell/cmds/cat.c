@@ -56,6 +56,12 @@ static int _cat(int argc, char **argv)
     }
     close(fd);
 #endif
+
+    /* Hack for pyterm, it only flushes chars to screen after a line ending */
+    if (c != '\n' && c != '\r') {
+        putchar('\n');
+    }
+
     fflush(stdout);
     return 0;
 }
