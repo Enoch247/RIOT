@@ -65,6 +65,16 @@ bool onewire_rom_is_valid(const onewire_rom_t *rom)
 {
     assert(rom);
 
+    /* Some TI tmp1827 parts have broken ROM ID's with incorrect CRC's. If this
+       is one of those, skip CRC check and just assume it must be right.
+
+       see here for more info:
+       https://e2e.ti.com/support/sensors-group/sensors/f/sensors-forum/1342717/tmp1827-64-bit-uid-crc8-not-correct
+    */
+    if (onewire_rom_family_code(rom) == 0x27) {
+        return true;
+    }
+
     const uint_fast8_t crc = onewire_crc8(0, rom->u8, sizeof(rom->u8));
     DEBUG("%s: crc result: %x\n", DEBUG_FUNC, crc);
     return crc == 0;
