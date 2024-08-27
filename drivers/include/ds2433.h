@@ -25,6 +25,7 @@ int ds2433_init(ds2433_t *dev, const ds2433_params_t *params,
 
 int ds2433_read(ds2433_t *dev, uint16_t address, void* buf, size_t size);
 int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size);
+int ds2433_verify(ds2433_t *dev, uint16_t address, const void* buf, size_t size);
 int ds2433_flush(ds2433_t *dev);
 
 #endif

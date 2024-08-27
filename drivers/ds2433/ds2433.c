@@ -269,6 +269,10 @@ static int _copy_scratchpad(ds2433_t *dev)
     return 0;
 }
 
+// returns the number of bytes verified
+// TODO: this could be more effeicient if a onewire_verify(...) or
+// onewire_expect(...) were implmented so that we are reading more then single
+// bytes at a time
 static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
     size_t size)
 {
@@ -300,11 +304,11 @@ static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
         onewire_read_byte(bus, &byte);
         if (data[i] != byte)
         {
-            return -1; //TODO
+            return i;
         }
     }
 
-    return 0;
+    return size;
 }
 
 int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
@@ -341,7 +345,7 @@ int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
 
         // verify data just written
         res = _verify(dev, address + offset, &data[offset], bytes_written);
-        if (res < 0)
+        if (res != bytes_written)
         {
             return -EIO; //TODO
         }
@@ -351,4 +355,22 @@ int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
 
     onewire_release(bus);
     return size;
+}
+
+int ds2433_verify(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
+{
+    assert(dev);
+
+    if (address + size > DS2433_EEPROM_SIZE)
+    {
+        return -ERANGE;
+    }
+
+    onewire_t *bus = dev->params->bus;
+
+    onewire_aquire(bus);
+    const int res = _verify(dev, address, buf, size);
+    onewire_release(bus);
+
+    return res;
 }
