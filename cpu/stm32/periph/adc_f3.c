@@ -296,6 +296,7 @@ int32_t adc_sample(adc_t line, adc_res_t res)
     dev(line)->SQR1 = adc_config[line].chan << ADC_SQR1_SQ1_Pos;
 
     /* Start conversion and wait for it to complete */
+    dev(line)->ISR |= ADC_ISR_EOC;
     dev(line)->CR |= ADC_CR_ADSTART;
     while (!(dev(line)->ISR & ADC_ISR_EOC)) {}
     //while (!(dev(line)->CR & ADC_CR_ADSTART)) {}
