@@ -482,7 +482,7 @@ void stmclk_init_sysclk(void)
 
     RCC->D1CFGR = RCC_D1CFGR_D1CPRE_DIV1 | RCC_D1CFGR_HPRE_DIV2 | RCC_D1CFGR_D1PPRE_DIV2;
     RCC->D2CFGR = RCC_D2CFGR_D2PPRE1_DIV2 | RCC_D2CFGR_D2PPRE2_DIV2;
-    RCC->D3CFGR = RCC_D3CFGR_D3PPRE_DIV2;
+    RCC->D3CFGR = RCC_D3CFGR_D3PPRE_DIV4;
 
     /* use HSI as system clock while we do any further configuration and
      * configure the AHB and APB clock dividers as configure by the board */
