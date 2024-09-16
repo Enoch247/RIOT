@@ -161,8 +161,10 @@ int adc_init(adc_t line)
     ADC_INSTANCE->CCR = ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0;
 
     // set ADC3 to AHB/4 = 68.75 MHz (75 MHz max)
+    // and enable internal Vref
     static_assert(CLOCK_AHB == MHZ(275));
-    ADC3_COMMON->CCR = ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0;
+    ADC3_COMMON->CCR = ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0 |
+        ADC_CCR_VREFEN;
 #endif
 
     /* Configure the pin */
@@ -229,7 +231,11 @@ int adc_init(adc_t line)
     // sample time to use
     // ADC1/2 : (1/34.375) uS * (7.5+16.5) samples = 0.698182 uSec/conversion
     // ADC3   : (1/68.75) uS * (12.5+47.5) samples = 0.872727 uSec/conversion
-    const unsigned smp = (adc_config[line].dev < 2) ? 3 : 4;
+    unsigned smp = (adc_config[line].dev < 2) ? 3 : 4;
+
+    if (line == ADC3_VREFINT) {
+        smp = 7;
+    }
 
     /* Configure sampling time for the given channel */
     if (adc_config[line].chan < 10) {
