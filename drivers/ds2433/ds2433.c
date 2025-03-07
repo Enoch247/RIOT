@@ -262,10 +262,11 @@ static int _copy_scratchpad(ds2433_t *dev)
     ztimer_sleep(ZTIMER_USEC, 5 * 1000);
 
     uint8_t byte = 0;
-    while (byte != 0x55 && byte != 0xaa)
+    onewire_read_byte(bus, &byte);
+    if (byte != 0x55 && byte != 0xaa)
     {
-        //TODO: this is an opertunity to do some erorr checking here
-        onewire_read_byte(bus, &byte);
+        onewire_release(bus);//TODO: rm
+        return -EIO; //TODO
     }
 
     return 0;
