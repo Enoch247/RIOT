@@ -294,7 +294,6 @@ static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
     res = onewire_select(bus, dev->id);
     if (res < 0)
     {
-        onewire_release(bus);
         return -EIO; //TODO
     }
 
@@ -350,6 +349,7 @@ int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
         res = _verify(dev, address + offset, &data[offset], bytes_written);
         if (res != bytes_written)
         {
+            onewire_release(bus);
             return -EIO; //TODO
         }
 
