@@ -257,7 +257,9 @@ static int _copy_scratchpad(ds2433_t *dev)
     onewire_write_byte(bus, CMD_COPY_SCRATCHPAD);
     onewire_write(bus, key, sizeof(key));
 
-    ztimer_sleep(ZTIMER_USEC, 100 * 1000); //TODO
+    // copy takes a maxiumum of 5 msec, durring which the bus must not fall
+    // below 2.8 volts
+    ztimer_sleep(ZTIMER_USEC, 5 * 1000);
 
     uint8_t byte = 0;
     while (byte != 0x55 && byte != 0xaa)
