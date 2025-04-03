@@ -182,7 +182,7 @@ void gpio_irq_disable(gpio_t pin)
 
 #endif /* defined(MODULE_PERIPH_GPIO_IRQ) */
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     return ((GPIO_T_ADDR(pin)->DATA) >> GPIO_T_PIN(pin)) & 1u;
 }
@@ -232,7 +232,7 @@ void gpio_toggle(gpio_t pin)
     base->OUTENSET = out_clr & dataout;
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         gpio_set(pin);

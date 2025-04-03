@@ -25,6 +25,7 @@
 #include "net/gnrc/ipv6/nib/nc.h"
 #include "net/gnrc/ipv6/nib.h"
 #include "net/gnrc/netif/internal.h"
+#include "net/ipv6/addr.h"
 #include "random.h"
 
 #include "_nib-internal.h"
@@ -83,8 +84,11 @@ void _nib_release(void)
 static inline bool _addr_equals(const ipv6_addr_t *addr,
                                 const _nib_onl_entry_t *node)
 {
-    return (addr == NULL) || ipv6_addr_is_unspecified(&node->ipv6) ||
-           (ipv6_addr_equal(addr, &node->ipv6));
+    if (addr == NULL) {
+        return ipv6_addr_is_unspecified(&node->ipv6);
+    } else {
+        return ipv6_addr_equal(addr, &node->ipv6);
+    }
 }
 
 _nib_onl_entry_t *_nib_onl_alloc(const ipv6_addr_t *addr, unsigned iface)
@@ -275,18 +279,7 @@ void _nib_nc_remove(_nib_onl_entry_t *node)
 #if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_6LR)
     evtimer_del((evtimer_t *)&_nib_evtimer, &node->addr_reg_timeout.event);
 #endif  /* CONFIG_GNRC_IPV6_NIB_6LR */
-#if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_QUEUE_PKT)
-    gnrc_pktqueue_t *tmp;
-    for (gnrc_pktqueue_t *ptr = node->pktqueue;
-         (ptr != NULL) && (tmp = (ptr->next), 1);
-         ptr = tmp) {
-        gnrc_pktqueue_t *entry = gnrc_pktqueue_remove(&node->pktqueue, ptr);
-        gnrc_icmpv6_error_dst_unr_send(ICMPV6_ERROR_DST_UNR_ADDR,
-                                       entry->pkt);
-        gnrc_pktbuf_release_error(entry->pkt, EHOSTUNREACH);
-        entry->pkt = NULL;
-    }
-#endif  /* CONFIG_GNRC_IPV6_NIB_QUEUE_PKT */
+    _nbr_flush_pktqueue(node);
     /* remove from cache-out procedure */
     clist_remove(&_next_removable, (clist_node_t *)node);
     _nib_onl_clear(node);
@@ -378,6 +371,20 @@ void _nib_drl_remove(_nib_dr_entry_t *nib_dr)
     if (nib_dr->next_hop != NULL) {
         _evtimer_del(&nib_dr->rtr_timeout);
         nib_dr->next_hop->mode &= ~(_DRL);
+#if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_DC)
+        /*  When removing a router from the Default
+            Router list, the node MUST update the Destination Cache in such a way
+            that all entries using the router perform next-hop determination
+            again rather than continue sending traffic to the (deleted) router.
+            (https://datatracker.ietf.org/doc/html/rfc4861#section-6.3.5)
+        */
+        _nib_offl_entry_t *dc = NULL;
+        while ((dc = _nib_offl_iter(dc))) {
+            if ((dc->mode & _DC) && dc->next_hop == nib_dr->next_hop) {
+                _nib_dc_remove(dc);
+            }
+        }
+#endif
         _nib_onl_clear(nib_dr->next_hop);
         memset(nib_dr, 0, sizeof(_nib_dr_entry_t));
     }
@@ -486,28 +493,34 @@ _nib_offl_entry_t *_nib_offl_alloc(const ipv6_addr_t *next_hop, unsigned iface,
         _nib_offl_entry_t *tmp = &_dsts[i];
         _nib_onl_entry_t *tmp_node = tmp->next_hop;
 
-        if ((tmp->pfx_len == pfx_len) &&                /* prefix length matches and */
-            (tmp_node != NULL) &&                       /* there is a next hop that */
-            (_nib_onl_get_if(tmp_node) == iface) &&     /* has a matching interface and */
-            _addr_equals(next_hop, tmp_node) &&         /* equal address to next_hop, also */
-            (ipv6_addr_match_prefix(&tmp->pfx, pfx) >= pfx_len)) {  /* the prefix matches */
-            /* exact match (or next hop address was previously unset) */
-            DEBUG("  %p is an exact match\n", (void *)tmp);
-            if (next_hop != NULL) {
-                memcpy(&tmp_node->ipv6, next_hop, sizeof(tmp_node->ipv6));
+        if (tmp->mode == _EMPTY) {
+            if (dst == NULL) {
+                dst = tmp;
             }
-            tmp->next_hop->mode |= _DST;
-            return tmp;
+            continue;
         }
-        if ((dst == NULL) && (tmp_node == NULL)) {
-            dst = tmp;
+
+        /* else: offlink entry not empty, potential match */
+        if (tmp->pfx_len == pfx_len && ipv6_addr_match_prefix(&tmp->pfx, pfx) >= pfx_len) {
+            /* prefix matches */
+            assert(tmp_node);
+            if (_nib_onl_get_if(tmp_node) == iface && (ipv6_addr_is_unspecified(&tmp_node->ipv6)
+                                                       || _addr_equals(next_hop, tmp_node))) {
+                /* next hop matches or is unspecified */
+                DEBUG("  %p is an exact match\n", (void *)tmp);
+                if (next_hop != NULL) {
+                    /* sets next_hop if it was previously unspecified */
+                    memcpy(&tmp_node->ipv6, next_hop, sizeof(tmp_node->ipv6));
+                }
+                /*mark that this NCE is used by an offl_entry*/
+                tmp->next_hop->mode |= _DST;
+                return tmp;
+            }
         }
     }
     if (dst != NULL) {
         DEBUG("  using %p\n", (void *)dst);
-        dst->next_hop = _nib_onl_alloc(next_hop, iface);
-
-        if (dst->next_hop == NULL) {
+        if (!dst->next_hop && !(dst->next_hop = _nib_onl_alloc(next_hop, iface))) {
             memset(dst, 0, sizeof(_nib_offl_entry_t));
             return NULL;
         }
@@ -538,20 +551,27 @@ static inline bool _in_abrs(const _nib_abr_entry_t *abr)
 
 void _nib_offl_clear(_nib_offl_entry_t *dst)
 {
-    if (dst->next_hop != NULL) {
-        _nib_offl_entry_t *ptr;
-        for (ptr = _dsts; _in_dsts(ptr); ptr++) {
-            /* there is another dst pointing to next-hop => only remove dst */
-            if ((dst != ptr) && (dst->next_hop == ptr->next_hop)) {
-                break;
+    if (dst->mode == _EMPTY) {
+        if (dst->next_hop != NULL) {
+            _nib_offl_entry_t *ptr;
+            for (ptr = _dsts; _in_dsts(ptr); ptr++) {
+                /* there is another dst pointing to next-hop => only remove dst */
+                if ((dst != ptr) && (dst->next_hop == ptr->next_hop)) {
+                    break;
+                }
+            }
+            /* we iterated and found no further dst pointing to next-hop */
+            if (!_in_dsts(ptr)) {
+                dst->next_hop->mode &= ~(_DST);
+                _nib_onl_clear(dst->next_hop);
             }
         }
-        /* we iterated and found no further dst pointing to next-hop */
-        if (!_in_dsts(ptr)) {
-            dst->next_hop->mode &= ~(_DST);
-            _nib_onl_clear(dst->next_hop);
-        }
         memset(dst, 0, sizeof(_nib_offl_entry_t));
+    }
+    else {
+        DEBUG("nib: offlink entry %s/%u with mode %u not cleared\n",
+              ipv6_addr_to_str(addr_str, &dst->pfx, sizeof(addr_str)),
+              dst->pfx_len, dst->mode);
     }
 }
 

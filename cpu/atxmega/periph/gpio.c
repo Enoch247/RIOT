@@ -252,7 +252,7 @@ void gpio_irq_disable(gpio_t pin)
     }
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     PORT_t *port = _port_addr(pin);
     uint8_t pin_mask = _pin_mask(pin);
@@ -306,7 +306,7 @@ void gpio_toggle(gpio_t pin)
     }
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     DEBUG("gpio_write pin = 0x%04x, value = 0x%02x \n", pin, value);
 

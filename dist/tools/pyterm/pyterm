@@ -38,8 +38,10 @@ import argparse
 import re
 import codecs
 import platform
+import psutil
 
 from subprocess import Popen, PIPE
+from signal import SIGINT
 
 try:
     serial.Serial
@@ -166,7 +168,7 @@ class SerCmd(cmd.Cmd):
             self.run_name = defaultrunname
 
         if not self.log_dir_name:
-            self.log_dir_name = self.host
+            self.log_dir_name = self.configdir + os.path.sep + self.host
 
         if not os.path.exists(self.configdir):
             os.makedirs(self.configdir)
@@ -196,7 +198,7 @@ class SerCmd(cmd.Cmd):
         # create formatter
         formatter = logging.Formatter(self.fmt_str)
 
-        directory = self.configdir + os.path.sep + self.log_dir_name
+        directory = self.log_dir_name
         if not os.path.exists(directory):
             os.makedirs(directory)
         logging.basicConfig(filename=directory + os.path.sep + self.run_name +
@@ -388,6 +390,14 @@ class SerCmd(cmd.Cmd):
 
         if self.tcp_serial:
             self.ser.close()
+        # When a subprocess has been spawned, we want to send a SIGINT to all
+        # child processes
+        if self.process:
+            parent = psutil.Process(self.ser.pid)
+            children = parent.children(recursive=True)
+            for child in children:
+                os.kill(child.pid, SIGINT)
+            self.ser.send_signal(SIGINT)
         return True
 
     def do_PYTERM_save(self, line):

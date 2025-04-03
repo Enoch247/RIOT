@@ -12,6 +12,7 @@ USEMODULE += $(PERIPH_FEATURES)
 # Add all USED periph_% init modules unless they are blacklisted
 PERIPH_IGNORE_MODULES := \
   periph_cipher_aes_128_cbc \
+  periph_cipher_chacha20 \
   periph_clic \
   periph_common \
   periph_coretimer \
@@ -27,9 +28,15 @@ PERIPH_IGNORE_MODULES := \
   periph_gpio_ll% \
   periph_gpio_mux \
   periph_hash_sha_1 \
+  periph_hash_sha3_256 \
+  periph_hash_sha3_384 \
+  periph_hash_sha3_512 \
   periph_hash_sha_224 \
   periph_hash_sha_256 \
+  periph_hash_sha_384 \
   periph_hash_sha_512 \
+  periph_hash_sha_512_224 \
+  periph_hash_sha_512_256 \
   periph_hmac_sha_256 \
   periph_i2c_hw \
   periph_i2c_sw \
@@ -77,6 +84,10 @@ endif
 ifneq (,$(filter periph_rtc,$(USEMODULE)))
   USEMODULE += rtc_utils
 endif
+
+# select cortexm_stack_limit pseudomodule if the corresponding
+# feature is used
+USEMODULE += $(filter cortexm_stack_limit, $(FEATURES_USED))
 
 # select cortexm_svc pseudomodule if the corresponding feature is used
 USEMODULE += $(filter cortexm_svc, $(FEATURES_USED))

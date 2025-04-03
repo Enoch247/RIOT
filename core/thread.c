@@ -35,6 +35,15 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+#if defined(HAVE_VALGRIND_H)
+#  include <valgrind.h>
+#elif defined(HAVE_VALGRIND_VALGRIND_H)
+#  include <valgrind/valgrind.h>
+#else
+#  define   VALGRIND_DISABLE_ERROR_REPORTING    (void)0
+#  define   VALGRIND_ENABLE_ERROR_REPORTING     (void)0
+#endif
+
 thread_status_t thread_getstatus(kernel_pid_t pid)
 {
     thread_t *thread = thread_get(pid);
@@ -123,7 +132,7 @@ int thread_wakeup(kernel_pid_t pid)
     else if (thread->status == STATUS_SLEEPING) {
         DEBUG("thread_wakeup: Thread is sleeping.\n");
 
-        sched_set_status(thread, STATUS_RUNNING);
+        sched_set_status(thread, STATUS_PENDING);
 
         irq_restore(old_state);
         sched_switch(thread->priority);
@@ -151,6 +160,29 @@ void thread_yield(void)
     thread_yield_higher();
 }
 
+/*
+ * Example of insertion operations in the linked list
+ *   thread_add_to_list(list,new_node) //Prio4
+ *   list         list      new_node
+ *  +------+     +------+   +------+
+ *  |    + | ->  |    + |   | 4  + |
+ *  +----|-+     +----|-+   +----|-+
+ *       +-->NULL     +-----/\   +-->NULL
+ *  thread_add_to_list(list,higher_node) //Prio2(Higher)
+ *  list       new_node   higher_node
+ *  +------+   +------+   +------+
+ *  |    + |   | 4  + |   | 2  + |
+ *  +----|-+   +----|-+   +----|-+
+ *       |          +-->NULL   |
+ *       |      /\-------------+
+ *       +----------------/\
+ *  thread_add_to_list(list,lower_node) //Prio6(Lower)
+ *  list       new_node   lower_node
+ *  +------+   +------+   +------+
+ *  |    + |   | 4  + |   | 6  + |
+ *  +----|-+   +----|-+   +----|-+
+ *       +-----/\   +-----/\   +-->NULL
+ */
 void thread_add_to_list(list_node_t *list, thread_t *thread)
 {
     assert(thread->status < STATUS_ON_RUNQUEUE);
@@ -171,17 +203,29 @@ void thread_add_to_list(list_node_t *list, thread_t *thread)
     list->next = new_node;
 }
 
-uintptr_t thread_measure_stack_free(const char *stack)
+uintptr_t measure_stack_free_internal(const char *stack, size_t size)
 {
     /* Alignment of stack has been fixed (if needed) by thread_create(), so
      * we can silence -Wcast-align here */
     uintptr_t *stackp = (uintptr_t *)(uintptr_t)stack;
+    uintptr_t end = (uintptr_t)stack + size;
 
-    /* assume that the comparison fails before or after end of stack */
+    /* HACK: This will affect native32/native64 only.
+     *
+     * The dark magic used here is frowned upon by valgrind. E.g. valgrind may
+     * deduce that a specific value was at some point allocated on the stack,
+     * but has gone out of scope. When that value is now read again to
+     * estimate stack usage, it does look a lot like someone passed a pointer
+     * to a stack allocated value, and that pointer is referenced after that
+     * value has gone out of scope. */
+    VALGRIND_DISABLE_ERROR_REPORTING;
+
     /* assume that the stack grows "downwards" */
-    while (*stackp == (uintptr_t)stackp) {
+    while (((uintptr_t)stackp < end) && (*stackp == (uintptr_t)stackp)) {
         stackp++;
     }
+
+    VALGRIND_ENABLE_ERROR_REPORTING;
 
     uintptr_t space_free = (uintptr_t)stackp - (uintptr_t)stack;
 
@@ -219,6 +263,7 @@ kernel_pid_t thread_create(char *stack, int stacksize, uint8_t priority,
 
     if (stacksize < 0) {
         DEBUG("thread_create: stacksize is too small!\n");
+        return -EINVAL;
     }
     /* allocate our thread control block at the top of our stackspace. Cast to
      * (uintptr_t) intermediately to silence -Wcast-align. (We manually made
@@ -244,7 +289,12 @@ kernel_pid_t thread_create(char *stack, int stacksize, uint8_t priority,
 
 #if defined(DEVELHELP) || defined(SCHED_TEST_STACK) \
     || defined(MODULE_TEST_UTILS_PRINT_STACK_USAGE)
-    if (flags & THREAD_CREATE_STACKTEST) {
+    if (flags & THREAD_CREATE_NO_STACKTEST) {
+        /* create stack guard. Alignment has been handled above, so silence
+         * -Wcast-align */
+        *(uintptr_t *)(uintptr_t)stack = (uintptr_t)stack;
+    }
+    else {
         /* assign each int of the stack the value of it's address. Alignment
          * has been handled above, so silence -Wcast-align */
         uintptr_t *stackmax = (uintptr_t *)(uintptr_t)(stack + stacksize);
@@ -254,11 +304,6 @@ kernel_pid_t thread_create(char *stack, int stacksize, uint8_t priority,
             *stackp = (uintptr_t)stackp;
             stackp++;
         }
-    }
-    else {
-        /* create stack guard. Alignment has been handled above, so silence
-         * -Wcast-align */
-        *(uintptr_t *)(uintptr_t)stack = (uintptr_t)stack;
     }
 #endif
 
@@ -285,7 +330,7 @@ kernel_pid_t thread_create(char *stack, int stacksize, uint8_t priority,
     thread->sp = thread_stack_init(function, arg, stack, stacksize);
 
 #if defined(DEVELHELP) || IS_ACTIVE(SCHED_TEST_STACK) || \
-    defined(MODULE_MPU_STACK_GUARD)
+    defined(MODULE_MPU_STACK_GUARD) || defined(MODULE_CORTEXM_STACK_LIMIT)
     thread->stack_start = stack;
 #endif
 
@@ -351,10 +396,14 @@ static const char *state_names[STATUS_NUMOF] = {
 
 const char *thread_state_to_string(thread_status_t state)
 {
-    const char *name = state_names[state] ? state_names[state] : NULL;
+    const char *name =  NULL;
+    if (state < STATUS_NUMOF) {
+        name = state_names[state];
+    }
 
-    assert(name != NULL); /* if compiling with assertions, this is an error that
-                             indicates that the table above is incomplete */
+    /* if compiling with assertions, this is an error
+     * that indicates that the table above is incomplete */
+    assert(name != NULL);
 
     return (name != NULL) ? name : STATE_NAME_UNKNOWN;
 }

@@ -8,6 +8,9 @@
  * directory for more details.
  */
 
+#ifndef DHT_H
+#define DHT_H
+
 /**
  * @defgroup    drivers_dht DHT Family of Humidity and Temperature Sensors
  * @ingroup     drivers_sensors
@@ -27,9 +30,6 @@
  * @author      Christian Mehlis <mehlis@inf.fu-berlin.de>
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
-
-#ifndef DHT_H
-#define DHT_H
 
 #include <errno.h>
 #include <stdint.h>
@@ -107,14 +107,16 @@ typedef struct {
 int dht_init(dht_t *dev, const dht_params_t *params);
 
 /**
- * @brief   get a new temperature and humidity value from the device
+ * @brief   get a new temperature and/or humidity value from the device
  *
  * @note    if reading fails or checksum is invalid, no new values will be
  *          written into the result values
  *
  * @param[in]  dev      device descriptor of a DHT device
- * @param[out] temp     temperature value [in °C * 10^-1]
- * @param[out] hum      relative humidity value [in percent * 10^-1]
+ * @param[out] temp     temperature value [in °C * 10^-1],
+ *                      may be NULL if not needed
+ * @param[out] hum      relative humidity value [in percent * 10^-1],
+ *                      may be NULL if not needed
  *
  * @retval 0            Success
  * @retval -ENODEV      The sensor did not respond to the transmission of a
@@ -132,5 +134,5 @@ int dht_read(dht_t *dev, int16_t *temp, int16_t *hum);
 }
 #endif
 
-#endif /* DHT_H */
 /** @} */
+#endif /* DHT_H */

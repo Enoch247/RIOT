@@ -247,7 +247,7 @@ void gpio_init_port(gpio_t pin, uint32_t pcr)
 #endif /* KINETIS_HAVE_PCR */
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     if (gpio(pin)->PDDR & (1 << pin_num(pin))) {
         return (gpio(pin)->PDOR & (1 << pin_num(pin))) ? 1 : 0;
@@ -272,7 +272,7 @@ void gpio_toggle(gpio_t pin)
     gpio(pin)->PTOR = (1 << pin_num(pin));
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         gpio(pin)->PSOR = (1 << pin_num(pin));

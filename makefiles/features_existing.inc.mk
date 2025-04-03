@@ -42,10 +42,12 @@ FEATURES_EXISTING := \
     ble_nimble_netif \
     ble_phy_2mbit \
     ble_phy_coded \
+    board_bat_voltage \
     bootloader_stm32 \
     can_rx_mailbox \
     cortexm_fpu \
     cortexm_mpu \
+    cortexm_stack_limit \
     cortexm_svc \
     cpp \
     cpu_arm7tdmi_gba \
@@ -85,6 +87,7 @@ FEATURES_EXISTING := \
     cpu_qn908x \
     cpu_rpx0xx \
     cpu_sam3 \
+    cpu_sam4s \
     cpu_samd21 \
     cpu_samd5x \
     cpu_saml1x \
@@ -114,7 +117,6 @@ FEATURES_EXISTING := \
     esp_ble \
     esp_ble_esp32 \
     esp_ble_esp32c3 \
-    esp_eth \
     esp_hw_counter \
     esp_jtag \
     esp_now \
@@ -126,18 +128,21 @@ FEATURES_EXISTING := \
     esp_wifi \
     esp_wifi_ap \
     esp_wifi_enterprise \
-    ethernet \
     gecko_sdk_librail_fpu \
     gecko_sdk_librail_nonfpu \
     highlevel_stdio \
     libstdcpp \
     motor_driver \
+    netif \
+    netif_ethernet \
+    netif_openwsn \
     newlib \
     no_idle_thread \
     periph_adc \
     periph_adc_continuous \
     periph_can \
     periph_cipher_aes_128_cbc \
+    periph_cipher_chacha20 \
     periph_clic \
     periph_coretimer \
     periph_cpuid \
@@ -169,6 +174,7 @@ FEATURES_EXISTING := \
     periph_gpio_ll_input_pull_keep \
     periph_gpio_ll_input_pull_up \
     periph_gpio_ll_irq \
+    periph_gpio_ll_irq_edge_triggered_both \
     periph_gpio_ll_irq_level_triggered_high \
     periph_gpio_ll_irq_level_triggered_low \
     periph_gpio_ll_irq_unmask \
@@ -179,10 +185,16 @@ FEATURES_EXISTING := \
     periph_gpio_ll_switch_dir \
     periph_gpio_tamper_wake \
     periph_hash_md5 \
+    periph_hash_sha3_256 \
+    periph_hash_sha3_384 \
+    periph_hash_sha3_512 \
     periph_hash_sha_1 \
     periph_hash_sha_224 \
     periph_hash_sha_256 \
+    periph_hash_sha_384 \
     periph_hash_sha_512 \
+    periph_hash_sha_512_224 \
+    periph_hash_sha_512_256 \
     periph_hmac_sha_256 \
     periph_hwrng \
     periph_i2c \
@@ -256,4 +268,5 @@ FEATURES_EXISTING := \
     tinyusb_device \
     vdd_lc_filter_reg0 \
     vdd_lc_filter_reg1 \
+    xiao_shield \
     #

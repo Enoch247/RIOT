@@ -7,6 +7,9 @@
  * directory for more details.
  */
 
+#ifndef SX127X_H
+#define SX127X_H
+
 /**
  * @defgroup    drivers_sx127x Semtech SX1272 and SX1276 radios driver
  * @ingroup     drivers_netdev
@@ -21,8 +24,7 @@
  * Be careful to configure the device to use a RF frequency allowed in your
  * region.
  * Here is the list of allowed frequencies for your region (see
- * [LoRaWAN regional parameters document available online]
- * (https://www.lora-alliance.org/for-developers)):
+ * [LoRaWAN regional parameters document available online](https://www.lora-alliance.org/for-developers)):
  * - Europe has 2 allowed bands (ETSI):
  *   - EU863-870
  *   - EU433 (from 433.175MHZ to 434.665MHZ exactly)
@@ -56,9 +58,6 @@
  * @author      Eugene P. <ep@unwds.com>
  * @author      Alexandre Abadie <alexandre.abadie@inria.fr>
  */
-
-#ifndef SX127X_H
-#define SX127X_H
 
 #include "timex.h"
 #include "ztimer.h"
@@ -684,5 +683,5 @@ void sx127x_set_freq_hop(sx127x_t *dev, bool freq_hop_on);
 }
 #endif
 
-#endif /* SX127X_H */
 /** @} */
+#endif /* SX127X_H */

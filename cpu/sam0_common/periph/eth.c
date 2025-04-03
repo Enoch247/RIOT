@@ -132,9 +132,9 @@ unsigned sam0_read_phy(uint8_t phy, uint8_t addr)
                   | GMAC_MAN_OP(PHY_READ_OP);
 
     /* Wait for operation completion */
-    while (!GMAC->NSR.bit.IDLE) {}
+    while (!(GMAC->NSR.reg & GMAC_NSR_IDLE)) {}
     /* return content of shift register */
-    return (GMAC->MAN.reg & GMAC_MAN_DATA_Msk);
+    return GMAC->MAN.reg & GMAC_MAN_DATA_Msk;
 }
 
 void sam0_write_phy(uint8_t phy, uint8_t addr, uint16_t data)
@@ -148,7 +148,7 @@ void sam0_write_phy(uint8_t phy, uint8_t addr, uint16_t data)
                   | GMAC_MAN_CLTTO      | GMAC_MAN_DATA(data);
 
     /* Wait for operation completion */
-    while (!GMAC->NSR.bit.IDLE) {}
+    while (!(GMAC->NSR.reg & GMAC_NSR_IDLE)) {}
 }
 
 void sam0_eth_poweron(void)
@@ -158,8 +158,14 @@ void sam0_eth_poweron(void)
 
     /* enable PHY */
     gpio_set(sam_gmac_config[0].rst_pin);
-    _is_sleeping = false;
 
+    /* if the PHY is not idle, it's likely broken */
+    if (!(GMAC->NSR.reg & GMAC_NSR_IDLE)) {
+        DEBUG_PUTS("sam0_eth: PHY not IDLE, likely broken.");
+        return;
+    }
+
+    _is_sleeping = false;
     while (MII_BMCR_RESET & sam0_read_phy(0, MII_BMCR)) {}
 }
 
@@ -217,43 +223,48 @@ void sam0_eth_get_mac(eui48_t *out)
 
 int sam0_eth_send(const struct iolist *iolist)
 {
-    unsigned len = iolist_size(iolist);
     unsigned tx_len = 0;
     tx_curr = &tx_desc[tx_idx];
 
     if (_is_sleeping) {
-        return -ENOTSUP;
+        return -ENETDOWN;
     }
 
     /* load packet data into TX buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
         if (tx_len + iol->iol_len > ETHERNET_MAX_LEN) {
-            return -EBUSY;
+            return -EOVERFLOW;
         }
         if (iol->iol_len) {
             memcpy ((uint32_t*)(tx_curr->address + tx_len), iol->iol_base, iol->iol_len);
             tx_len += iol->iol_len;
         }
     }
-    if (len == tx_len) {
-        /* Clear and set the frame size */
-        tx_curr->status &= ~DESC_TX_STATUS_LEN_MASK;
-        tx_curr->status |= (len & DESC_TX_STATUS_LEN_MASK);
-        /* Indicate this is the last buffer and the frame is ready */
-        tx_curr->status |= DESC_TX_STATUS_LAST_BUF | DESC_TX_STATUS_USED;
-        /* Prepare next buffer index */
-        tx_idx = (tx_idx < ETH_TX_BUFFER_COUNT-1) ? tx_idx+1 : 0;
-        __DSB();
-        tx_curr->status &= ~DESC_TX_STATUS_USED;
-        /* Start transmission */
-        GMAC->NCR.reg |= GMAC_NCR_TSTART;
-        /* Set the next buffer */
-        tx_curr = &tx_desc[tx_idx];
+
+    /* Clear and set the frame size */
+    tx_curr->status = (tx_len & DESC_TX_STATUS_LEN_MASK)
+    /* Indicate this is the last buffer and the frame is ready */
+                    | DESC_TX_STATUS_LAST_BUF;
+    /* Prepare next buffer index */
+    if (++tx_idx == ETH_TX_BUFFER_COUNT) {
+        /* Set WRAP flag to indicate last buffer */
+        tx_curr->status |= DESC_TX_STATUS_WRAP;
+        tx_idx = 0;
     }
-    else {
-        DEBUG("Mismatch TX len, abort send\n");
-    }
-    return len;
+    __DMB();
+
+    /* Start transmission */
+    GMAC->NCR.reg |= GMAC_NCR_TSTART;
+    /* Set the next buffer */
+    tx_curr = &tx_desc[tx_idx];
+
+    return 0;
+}
+
+unsigned _sam0_eth_get_last_len(void)
+{
+    unsigned idx = tx_idx ? tx_idx - 1 : ETH_TX_BUFFER_COUNT - 1;
+    return tx_desc[idx].status & DESC_TX_STATUS_LEN_MASK;
 }
 
 static int _try_receive(char* data, unsigned max_len, int block)
@@ -382,8 +393,10 @@ int sam0_eth_init(void)
     GMAC->IDR.reg = 0xFFFFFFFF;
     /* clear flags */
     GMAC->RSR.reg = GMAC_RSR_HNO | GMAC_RSR_RXOVR | GMAC_RSR_REC | GMAC_RSR_BNA;
+    GMAC->TSR.reg = 0xFFFF;
     /* Enable needed interrupts */
-    GMAC->IER.reg = GMAC_IER_RCOMP;
+    GMAC->IER.reg = GMAC_IER_RCOMP
+                  | GMAC_IER_TCOMP | GMAC_IER_TFC | GMAC_IER_RLEX;
 
     GMAC->NCFGR.reg = GMAC_NCFGR_MTIHEN
                     | GMAC_NCFGR_RXCOEN | GMAC_NCFGR_MAXFS | GMAC_NCFGR_CAF

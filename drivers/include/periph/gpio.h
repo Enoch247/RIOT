@@ -6,6 +6,9 @@
  * directory for more details.
  */
 
+#ifndef PERIPH_GPIO_H
+#define PERIPH_GPIO_H
+
 /**
  * @defgroup    drivers_periph_gpio GPIO
  * @ingroup     drivers_periph
@@ -33,7 +36,7 @@
  * pin can thus be described by its port/pin tuple. To access a pin, the
  * @p GPIO_PIN(port, pin) macro should be used. For example: If your platform has
  * a pin PB22, it will be port=1 and pin=22. The @p GPIO_PIN macro should be
- * overridden by a MCU, to allow for efficient encoding of the the port/pin tuple.
+ * overridden by a MCU, to allow for efficient encoding of the port/pin tuple.
  * For example, on many platforms it is possible to `OR` the pin number with the
  * corresponding ports base register address. This allows for efficient decoding
  * of pin number and base address without the need of any address lookup.
@@ -72,10 +75,8 @@
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
 
-#ifndef PERIPH_GPIO_H
-#define PERIPH_GPIO_H
-
 #include <limits.h>
+#include <stdbool.h>
 
 #include "periph_cpu.h"
 #include "periph_conf.h"
@@ -226,10 +227,10 @@ void gpio_irq_disable(gpio_t pin);
  *
  * @param[in] pin       the pin to read
  *
- * @return              0 when pin is LOW
- * @return              >0 for HIGH
+ * @retval              false   pin is LOW
+ * @retval              true    pin is HIGH
  */
-int gpio_read(gpio_t pin);
+bool gpio_read(gpio_t pin);
 
 /**
  * @brief   Set the given pin to HIGH
@@ -258,7 +259,7 @@ void gpio_toggle(gpio_t pin);
  * @param[in] pin       the pin to set
  * @param[in] value     value to set the pin to, 0 for LOW, HIGH otherwise
  */
-void gpio_write(gpio_t pin, int value);
+void gpio_write(gpio_t pin, bool value);
 
 /**
  * @brief   Test if a GPIO pin is equal to another GPIO pin
@@ -285,5 +286,5 @@ static inline int gpio_is_valid(gpio_t gpio)
 }
 #endif
 
-#endif /* PERIPH_GPIO_H */
 /** @} */
+#endif /* PERIPH_GPIO_H */

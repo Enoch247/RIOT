@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+#include "cpu_conf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -130,7 +132,7 @@ extern "C" {
             #define AHB1_PERIPH_EN              RCC->AHB1ENR
 #endif
 
-/* if CPU has APB2 bus */
+/* if CPU has AHB2 bus */
 #if     defined(CPU_FAM_STM32F0) || \
         defined(CPU_FAM_STM32F3)
             /* CPU has AHB2, but no periph enable registers for the bus. */
@@ -172,7 +174,8 @@ extern "C" {
 #elif   defined(CPU_FAM_STM32H7)
             #define AHB4_PERIPH_EN              RCC->AHB4ENR
 #elif   defined(AHB4PERIPH_BASE)
-            #define AHB4_PERIPH_EN              RCC->AHB3ENR //TODO: AHB3?
+            /* AHB3ENR is not a typo here. It controls both AHB3 and AHB4. */
+            #define AHB4_PERIPH_EN              RCC->AHB3ENR
 #endif
 
 /* if CPU has IOP bus */

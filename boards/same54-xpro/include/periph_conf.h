@@ -107,6 +107,13 @@ static const tc32_conf_t timer_config[] = {
 /** @} */
 
 /**
+ * @brief ATA6561 STANDBY pin definition
+ * @{
+ */
+#define AT6561_STBY_PIN            GPIO_PIN(PC, 13)
+/** @} */
+
+/**
  * @name CAN configuration
  * @{
  */
@@ -117,6 +124,9 @@ static const can_conf_t candev_conf[] = {
         .rx_pin = GPIO_PIN(PB, 13),
         .tx_pin = GPIO_PIN(PB, 12),
         .gclk_src = SAM0_GCLK_PERIPH,
+        .enable_pin = AT6561_STBY_PIN,
+        .enable_pin_mode = GPIO_OUT,
+        .enable_pin_active_low = true,
     }
 };
 
@@ -346,7 +356,8 @@ static const sam0_common_usb_config_t sam_usbdev_config[] = {
  */
 
 /* ADC Default values */
-#define ADC_PRESCALER                       ADC_CTRLA_PRESCALER_DIV128
+#define ADC_GCLK_SRC                        SAM0_GCLK_PERIPH    /**< clock used for ADC */
+#define ADC_PRESCALER                       ADC_CTRLA_PRESCALER_DIV8
 
 #define ADC_NEG_INPUT                       ADC_INPUTCTRL_MUXNEG(0x18u)
 #define ADC_REF_DEFAULT                     ADC_REFCTRL_REFSEL_INTVCC1

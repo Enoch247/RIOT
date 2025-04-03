@@ -19,8 +19,11 @@
  * @}
  */
 
+#include "periph/cpu_common.h"
+
 #include <assert.h>
 
+#include "compiler_hints.h"
 #include "macros/utils.h"
 #include "modules.h"
 #include "periph_conf.h"
@@ -33,7 +36,6 @@
         defined(CPU_FAM_STM32F4) || \
         defined(CPU_FAM_STM32F7) || \
         defined(CPU_FAM_STM32L1)
-        //TODO: add low pwr support?
             #define APB1_PERIPH_LP_EN           RCC->APB1LPENR
             #define APB2_PERIPH_LP_EN           RCC->APB2LPENR
             #ifdef AHB_PERIPH_EN
@@ -396,14 +398,14 @@ void periph_clk_dis(bus_t bus, uint32_t mask)
     _rcc_reg_clr(_rcc_dis_reg(bus), mask);
 }
 
-static inline
+MAYBE_UNUSED static inline
 void _periph_lpclk_en(bus_t bus, uint32_t mask)
 {
     assert(bus < BUS_NUMOF);
     _rcc_reg_set(_rcc_lp_en_reg(bus), mask);
 }
 
-static inline
+MAYBE_UNUSED static inline
 void _periph_lpclk_dis(bus_t bus, uint32_t mask)
 {
     assert(bus < BUS_NUMOF);

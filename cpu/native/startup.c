@@ -1,54 +1,47 @@
-/**
- * Native CPU entry code
- *
+/*
  * Copyright (C) 2013 Ludwig Knüpfer <ludwig.knuepfer@fu-berlin.de>
  *               2017 Freie Universität Berlin
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
  * directory for more details.
- *
- * @ingroup cpu_native
- * @{
- * @file
- * @author  Ludwig Knüpfer <ludwig.knuepfer@fu-berlin.de>
- * @author  Martine Lenders <m.lenders@fu-berlin.de>
- * @}
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+/**
+ * @file    Ludwig Knüpfer <ludwig.knuepfer@fu-berlin.de>
+ * @brief   Native CPU entry code
+ * @ingroup cpu_native
+ * @author  Martine Lenders <m.lenders@fu-berlin.de>
+ */
+
 #include <dlfcn.h>
-#else
-#include <dlfcn.h>
-#endif
-#include "byteorder.h"
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <features.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <err.h>
 #include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "kernel_init.h"
-#include "cpu.h"
+#include "byteorder.h"
 #include "irq.h"
-
-#include "board_internal.h"
+#include "kernel_init.h"
 #include "native_internal.h"
-#include "stdio_base.h"
-#include "tty_uart.h"
-
 #include "periph/init.h"
 #include "periph/pm.h"
+#include "test_utils/expect.h"
+#include "tty_uart.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
+#define DEBUG_STARTUP(...) DEBUG("[native] startup: " __VA_ARGS__)
 
 typedef enum {
     _STDIOTYPE_STDIO = 0,   /**< leave intact */
@@ -64,7 +57,6 @@ pid_t _native_pid;
 pid_t _native_id;
 unsigned _native_rng_seed = 0;
 int _native_rng_mode = 0;
-const char *_native_unix_socket_path = NULL;
 
 #ifdef MODULE_NETDEV_TAP
 #include "netdev_tap_params.h"
@@ -120,6 +112,14 @@ static const char short_opts[] = ":hi:s:deEoc:"
     "w:"
 #endif
     "";
+
+#if __GLIBC__
+/* glibc and Apple's libSystem pass argc, argv, and envp to init_fini handlers */
+# define _HAVE_INIT_FINIT_PROGRAM_ARGUMENTS 1
+#else
+/* otherwise, not guaranteed */
+# define _HAVE_INIT_FINIT_PROGRAM_ARGUMENTS 0
+#endif
 
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h' },
@@ -465,8 +465,54 @@ static void _reset_handler(void)
 __attribute__((constructor)) static void startup(int argc, char **argv, char **envp)
 {
     _native_init_syscalls();
-    /* initialize stdio as early as possible */
-    early_init();
+
+    /* Passing argc, argv, and envp to init_fini handlers is a glibc
+     * extension. If we are not running glibc, we parse /proc/self/cmdline
+     * to populate argc and argv by hand */
+    if (!_HAVE_INIT_FINIT_PROGRAM_ARGUMENTS) {
+        const size_t bufsize = 4096;
+        const size_t argc_max = 32;
+        size_t cmdlen = 0;
+        char *cmdline = malloc(bufsize);
+        argv = calloc(argc_max, sizeof(char *));
+        argc = 0;
+        envp = NULL;
+        expect(cmdline != NULL);
+        int cmdfd = real_open("/proc/self/cmdline", O_RDONLY);
+        expect(cmdfd != -1);
+        ssize_t count;
+        do {
+            count = real_read(cmdfd, cmdline + cmdlen, bufsize - cmdlen);
+            if (count < 0) {
+                if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
+                    continue;
+                }
+                expect(0);
+            }
+            cmdlen += count;
+        } while (count > 0);
+        real_close(cmdfd);
+        cmdline = realloc(cmdline, cmdlen);
+
+        char *argpos = cmdline;
+        while ((size_t)argc < argc_max) {
+            if (argpos == cmdline + cmdlen) {
+                argv[argc] = NULL;
+                break;
+            }
+            size_t len = strlen(argpos);
+
+            argv[argc++] = argpos;
+            argpos += len + 1;
+        }
+        expect((size_t)argc < argc_max);
+        argv = realloc(argv, sizeof(char *) * (argc + 1));
+    } else {
+        /* must be */
+        assert(argc > 0);
+        assert(argv);
+        assert(argv[0]);
+    }
 
     _native_argv = argv;
     _progname = argv[0];
@@ -642,24 +688,24 @@ __attribute__((constructor)) static void startup(int argc, char **argv, char **e
      */
     init_func_t *init_array_ptr = &__init_array_start;
     DEBUG("__init_array_start: %p\n", (void *)init_array_ptr);
-    while (init_array_ptr != &__init_array_end) {
+    while (init_array_ptr < &__init_array_end) {
         /* Skip everything which has already been run */
         if ((*init_array_ptr) == startup) {
             /* Found ourselves, move on to calling the rest of the constructors */
-            DEBUG("%18p - myself\n", (void *)init_array_ptr);
+            DEBUG_STARTUP("%18p - myself\n", (void *)init_array_ptr);
             ++init_array_ptr;
             break;
         }
-        DEBUG("%18p - skip\n", (void *)init_array_ptr);
+        DEBUG_STARTUP("%18p - skip\n", (void *)init_array_ptr);
         ++init_array_ptr;
     }
-    while (init_array_ptr != &__init_array_end) {
+    while (init_array_ptr < &__init_array_end) {
         /* call all remaining constructors */
-        DEBUG("%18p - call\n", (void *)init_array_ptr);
+        DEBUG_STARTUP("%18p - call\n", (void *)init_array_ptr);
         (*init_array_ptr)(argc, argv, envp);
         ++init_array_ptr;
     }
-    DEBUG("done, __init_array_end: %p\n", (void *)init_array_ptr);
+    DEBUG_STARTUP("done, __init_array_end: %p\n", (void *)init_array_ptr);
 
     native_cpu_init();
     native_interrupt_init();
@@ -680,7 +726,10 @@ __attribute__((constructor)) static void startup(int argc, char **argv, char **e
     periph_init();
     board_init();
 
-    register_interrupt(SIGUSR1, _reset_handler);
+    native_register_interrupt(SIGUSR1, _reset_handler);
+
+    /* initialize stdio after signal setup */
+    early_init();
 
     puts("RIOT native hardware initialization complete.\n");
     irq_enable();

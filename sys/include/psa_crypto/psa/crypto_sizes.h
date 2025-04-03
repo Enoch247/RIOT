@@ -51,18 +51,19 @@ extern "C" {
 #define PSA_BYTES_TO_BITS(bytes) ((bytes) * 8)
 
 /**
- * @brief   Maximum key size determined by the build system.
+ * @brief   Maximum key size in bytes, determined by the build system.
  *
  * @details The maximum key size is set automatically, depending on
  *          the features chosen at compile-time. They should not be
  *          changed manually.
  */
-#ifndef CONFIG_PSA_MAX_KEY_SIZE
-#if (IS_USED(MODULE_PSA_ASYMMETRIC_ECC_P256R1) || \
-     IS_USED(MODULE_PSA_ASYMMETRIC_ECC_ED25519) || \
-     IS_USED(MODULE_PSA_CIPHER_AES_256_CBC) || \
-     IS_USED(MODULE_PSA_MAC_HMAC_SHA_256) || \
-     IS_USED(MODULE_PSA_SECURE_ELEMENT_ATECCX08A_ECC_P256))
+#if   (IS_USED(MODULE_PSA_MAC_HMAC_SHA_256))
+#define CONFIG_PSA_MAX_KEY_SIZE 64
+#elif (IS_USED(MODULE_PSA_ASYMMETRIC_ECC_P256R1) || \
+       IS_USED(MODULE_PSA_ASYMMETRIC_ECC_ED25519) || \
+       IS_USED(MODULE_PSA_CIPHER_AES_256_CBC) || \
+       IS_USED(MODULE_PSA_SECURE_ELEMENT_ATECCX08A_ECC_P256) || \
+       IS_USED(MODULE_PSA_CIPHER_CHACHA20))
 #define CONFIG_PSA_MAX_KEY_SIZE 32
 #elif (IS_USED(MODULE_PSA_CIPHER_AES_192_CBC) || \
        IS_USED(MODULE_PSA_ASYMMETRIC_ECC_P192R1))
@@ -72,7 +73,6 @@ extern "C" {
 #define CONFIG_PSA_MAX_KEY_SIZE 16
 #else
 #define CONFIG_PSA_MAX_KEY_SIZE 0
-#endif
 #endif
 
 /**
@@ -354,6 +354,31 @@ extern "C" {
 #define PSA_HASH_MAX_SIZE   (64)
 
 /**
+ * @brief   Maximum size of a hash block supported by this implementation, in bytes.
+ *
+ *          See also @ref PSA_HASH_BLOCK_LENGTH().
+ */
+#if   (IS_USED(MODULE_PSA_HASH_SHA3_256))
+#define PSA_HASH_MAX_BLOCK_SIZE 136
+#elif (IS_USED(MODULE_PSA_HASH_SHA_512) || \
+       IS_USED(MODULE_PSA_HASH_SHA_384) || \
+       IS_USED(MODULE_PSA_HASH_SHA_512_224) || \
+       IS_USED(MODULE_PSA_HASH_SHA_512_256))
+#define PSA_HASH_MAX_BLOCK_SIZE 128
+#elif (IS_USED(MODULE_PSA_HASH_SHA3_384))
+#define PSA_HASH_MAX_BLOCK_SIZE 104
+#elif (IS_USED(MODULE_PSA_HASH_SHA3_512))
+#define PSA_HASH_MAX_BLOCK_SIZE 72
+#elif (IS_USED(MODULE_PSA_HASH_MD5) || \
+       IS_USED(MODULE_PSA_HASH_SHA_1) || \
+       IS_USED(MODULE_PSA_HASH_SHA_224) || \
+       IS_USED(MODULE_PSA_HASH_SHA_256))
+#define PSA_HASH_MAX_BLOCK_SIZE 64
+#else
+#define PSA_HASH_MAX_BLOCK_SIZE 0
+#endif
+
+/**
  * @brief   The input block size of a hash algorithm, in bytes.
  *
  * @details Hash algorithms process their input data in blocks. Hash operations will retain any
@@ -369,7 +394,24 @@ extern "C" {
  *          recognized, return 0. An implementation can return either 0 or the correct size for a
  *          hash algorithm that it recognizes, but does not support.
  */
-#define PSA_HASH_BLOCK_LENGTH(alg) /* implementation-defined value */
+#define PSA_HASH_BLOCK_LENGTH(alg)                                  \
+    (                                                               \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_MD2 ? 16 :            \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_MD4 ? 64 :            \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_MD5 ? 64 :            \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_RIPEMD160 ? 64 :      \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_1 ? 64 :          \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_224 ? 64 :        \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_256 ? 64 :        \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_384 ? 128 :       \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_512 ? 128 :       \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_512_224 ? 128 :   \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA_512_256 ? 128 :   \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA3_224 ? 144 :      \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA3_256 ? 136 :      \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA3_384 ? 104 :      \
+        PSA_ALG_HMAC_GET_HASH(alg) == PSA_ALG_SHA3_512 ? 72 :       \
+        0)
 
 /**
  * @brief   The size of the output of @ref psa_hash_compute() and @ref psa_hash_finish(), in bytes.
@@ -441,7 +483,30 @@ extern "C" {
  *
  *          See also @ref PSA_MAC_LENGTH().
  */
-#define PSA_MAC_MAX_SIZE (PSA_HASH_MAX_SIZE)
+#if (IS_USED(MODULE_PSA_MAC_HMAC_SHA_512) || \
+     IS_USED(MODULE_PSA_MAC_HMAC_SHA3_512))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_SHA3_512))    /* 64 */
+#elif (IS_USED(MODULE_PSA_MAC_HMAC_SHA_384) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA3_384))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_SHA3_384))    /* 48 */
+#elif (IS_USED(MODULE_PSA_MAC_HMAC_SHA_256) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA_512_256) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA3_256))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_SHA3_256))    /* 32 */
+#elif (IS_USED(MODULE_PSA_MAC_HMAC_SHA_224) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA_512_224) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA3_224))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_SHA3_224))    /* 28 */
+#elif (IS_USED(MODULE_PSA_MAC_HMAC_RIPEMD160) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_SHA_1))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_SHA_1))       /* 20 */
+#elif (IS_USED(MODULE_PSA_MAC_HMAC_MD2) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_MD4) || \
+       IS_USED(MODULE_PSA_MAC_HMAC_MD5))
+#define PSA_MAC_MAX_SIZE (PSA_HASH_LENGTH(PSA_ALG_MD5))         /* 16 */
+#else
+#define PSA_MAC_MAX_SIZE 0
+#endif
 
 /**
  * @brief   The block size of a block cipher.
@@ -593,8 +658,9 @@ extern "C" {
  *
  */
 #define PSA_CIPHER_IV_LENGTH(key_type, alg) \
-    (PSA_BLOCK_CIPHER_BLOCK_LENGTH(key_type) > 1 && \
-     ((alg) == PSA_ALG_CBC_NO_PADDING) ? 16 : 0)
+    ((PSA_BLOCK_CIPHER_BLOCK_LENGTH(key_type) > 1 && \
+     ((alg) == PSA_ALG_CBC_NO_PADDING)) ? 16 : \
+     (key_type == PSA_KEY_TYPE_CHACHA20) ? 12 : 0)
 
 /**
  * @brief   A sufficient buffer size for storing the IV generated by @ref psa_cipher_generate_iv(),
@@ -804,7 +870,8 @@ extern "C" {
 #define PSA_KEY_EXPORT_ECC_KEY_MAX_SIZE(key_type, key_bits)                  \
     (size_t)\
     (PSA_KEY_TYPE_ECC_GET_FAMILY(key_type) == PSA_ECC_FAMILY_TWISTED_EDWARDS ? 32 : \
-    (PSA_KEY_TYPE_ECC_GET_FAMILY(key_type) == PSA_ECC_FAMILY_SECP_R1 ? PSA_BITS_TO_BYTES(key_bits) : \
+    (PSA_KEY_TYPE_ECC_GET_FAMILY(key_type) == PSA_ECC_FAMILY_SECP_R1 ? \
+     PSA_BITS_TO_BYTES(key_bits) : \
      0))
 
 /**
@@ -844,9 +911,11 @@ extern "C" {
  *          Unspecified if the parameters are not valid.
  */
 #define PSA_EXPORT_KEY_OUTPUT_SIZE(key_type, key_bits) \
-    (PSA_KEY_TYPE_IS_PUBLIC_KEY(key_type) ? PSA_EXPORT_PUBLIC_KEY_OUTPUT_SIZE(key_type, key_bits) : \
-    (PSA_KEY_TYPE_IS_ECC(key_type) ? PSA_KEY_EXPORT_ECC_KEY_MAX_SIZE(key_type, key_bits) : \
-     0))
+    (PSA_KEY_TYPE_IS_PUBLIC_KEY(key_type) ? \
+     PSA_EXPORT_PUBLIC_KEY_OUTPUT_SIZE(key_type, key_bits) : \
+     (PSA_KEY_TYPE_IS_ECC(key_type) ? \
+      PSA_KEY_EXPORT_ECC_KEY_MAX_SIZE(key_type, key_bits) :   \
+      0))
 
 /**
  * @brief   Check whether the key size is a valid ECC size for key type.
@@ -892,30 +961,6 @@ extern "C" {
 #else
 #define PSA_EXPORT_KEY_PAIR_MAX_SIZE 0
 #endif
-
-/**
- * @brief   Get curve size from ECC public key
- *
- * @details The representation of an ECC public key is dependent on the family:
- *          - for twisted Edwards curves: 32B
- *          - for Weierstrass curves:
- *            - The byte 0x04;
- *            - `x_P` as a `ceiling(m/8)`-byte string, big-endian;
- *            - `y_P` as a `ceiling(m/8)`-byte string, big-endian;
- *            - where m is the bit size associated with the curve.
- *            - 1 byte + 2 * point size.
- */
-#define PSA_ECC_KEY_GET_CURVE_FROM_PUBLIC_KEY(key_type, key_bits)                    \
-    (PSA_KEY_TYPE_ECC_GET_FAMILY(key_type) == PSA_ECC_FAMILY_TWISTED_EDWARDS ? 255 : \
-     ((size_t)((key_bits - 8) / 2)))
-
-/**
- * @brief   Get curve size from ECC key (public or private)
- */
-#define PSA_ECC_KEY_GET_CURVE(key_type, key_bits)                   \
-    (PSA_KEY_TYPE_IS_ECC_PUBLIC_KEY(key_type) ?                     \
-        PSA_ECC_KEY_GET_CURVE_FROM_PUBLIC_KEY(key_type, key_bits) : \
-     (size_t)key_bits)
 
 /**
  * @brief   Maximum size of the export encoding of an ECC public key.
@@ -1059,7 +1104,7 @@ extern "C" {
  *          If the parameters are not valid, the return value is unspecified.
  */
 #define PSA_SIGN_OUTPUT_SIZE(key_type, key_bits, alg)        \
-    (PSA_KEY_TYPE_IS_ECC(key_type) ? PSA_ECDSA_SIGNATURE_SIZE(PSA_ECC_KEY_GET_CURVE(key_type, key_bits)) : \
+    (PSA_KEY_TYPE_IS_ECC(key_type) ? PSA_ECDSA_SIGNATURE_SIZE(key_bits) : \
      ((void)alg, 0))
 
 #ifdef __cplusplus

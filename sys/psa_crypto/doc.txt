@@ -12,7 +12,8 @@
  * About {#About}
  * =====
  * This module implements the PSA Cryptography API Version 1.1 as specified
- * [here](https://armmbed.github.io/mbed-crypto/html/).
+ * [here](https://armmbed.github.io/mbed-crypto/html/) and the PSA Status code API Version 1.0
+ * as specified [here](https://arm-software.github.io/psa-api/status-code/1.0/).
  * It provides an OS level access to cryptographic operations and supports software and hardware
  * backends as well as the use of secure elements.
  * The API automatically builds a hardware backend for an operation, if there's one available,
@@ -23,7 +24,7 @@
  * without exposing them to applications. To learn how to use keys with PSA,
  * read [Using Keys](#using-keys).
  *
- * A basic usage and configuration example can be found in `examples/psa_crypto`.
+ * A basic usage and configuration example can be found in `examples/advanced/psa_crypto`.
  * For more usage instructions, please read the documentation.
  *
  * If you want to add your own crypto backend, see [Porting Guide](#porting-guide).
@@ -142,7 +143,7 @@
  * Configuration {#configuration}
  * ===
  * Currently there are two ways to configure PSA Crypto: Kconfig and Makefiles. An example for both
- * can be found in `RIOT/examples/psa_crypto`.
+ * can be found in `RIOT/examples/advanced/psa_crypto`.
  *
  * ## Kconfig
  * We recommend using Kconfig and choosing your features in `menuconfig`.
@@ -163,7 +164,7 @@
  * configurations.
  *
  * Alternatively you can create an `app.config.test` file in your application folder
- * and choose your symbols there (see `examples/psa_crypto`).
+ * and choose your symbols there (see `examples/advanced/psa_crypto`).
  *
  * In the `app.config.test` file, modules can be chosen with the following syntax:
  * `CONFIG_MODULE_<MODULENAME>=y`, as shown below.
@@ -286,6 +287,12 @@
  * - psa_cipher_aes_256_cbc_custom_backend
  * - psa_cipher_aes_256_cbc_backend_riot
  *
+ * #### CHACHA20
+ * - psa_cipher_chacha20
+ * - psa_cipher_chacha20_backend_periph
+ * - psa_cipher_chacha20_custom_backend
+ * - psa_cipher_chacha20_backend_riot
+ *
  * ### Hashes
  * - Base: psa_hash
  *
@@ -312,11 +319,47 @@
  * - psa_hash_sha_256_custom_backend
  * - psa_hash_sha_256_backend_riot
  *
+ * #### SHA 384
+ * - psa_hash_sha_384
+ * - psa_hash_sha_384_backend_periph
+ * - psa_hash_sha_384_custom_backend
+ * - psa_hash_sha_384_backend_riot
+ *
  * #### SHA 512
  * - psa_hash_sha_512
  * - psa_hash_sha_512_backend_periph
  * - psa_hash_sha_512_custom_backend
  * - psa_hash_sha_512_backend_riot
+ *
+ * #### SHA 512/224
+ * - psa_hash_sha_512_224
+ * - psa_hash_sha_512_224_backend_periph
+ * - psa_hash_sha_512_224_custom_backend
+ * - psa_hash_sha_512_224_backend_riot
+ *
+ * #### SHA 512/256
+ * - psa_hash_sha_512_256
+ * - psa_hash_sha_512_256_backend_periph
+ * - psa_hash_sha_512_256_custom_backend
+ * - psa_hash_sha_512_256_backend_riot
+ *
+ * #### SHA 3/256
+ * - psa_hash_sha3_256
+ * - psa_hash_sha3_256_backend_periph
+ * - psa_hash_sha3_256_custom_backend
+ * - psa_hash_sha3_256_backend_riot
+ *
+ * #### SHA 3/384
+ * - psa_hash_sha3_384
+ * - psa_hash_sha3_384_backend_periph
+ * - psa_hash_sha3_384_custom_backend
+ * - psa_hash_sha3_384_backend_riot
+ *
+ * #### SHA 3/512
+ * - psa_hash_sha3_512
+ * - psa_hash_sha3_512_backend_periph
+ * - psa_hash_sha3_512_custom_backend
+ * - psa_hash_sha3_512_backend_riot
  *
  * ### MAC
  * - Base: psa_mac
@@ -346,7 +389,7 @@
  * Secure Elements {#secure-elements}
  * ===
  *
- * An example showing the use of SEs can be found in `examples/psa_crypto`.
+ * An example showing the use of SEs can be found in `examples/advanced/psa_crypto`.
  *
  * To use secure elements, you first need to assign a static location value to each device,
  * so PSA can find it. If you only use one device, you can use
@@ -389,7 +432,7 @@
  * CONFIG_PSA_SECURE_ELEMENT_ATECCX08A_ECC_P256=y
  * @endcode
  *
- * or added to the the Makefile:
+ * or added to the Makefile:
  * @code
  * USEMODULE += psa_secure_element
  * USEMODULE += psa_secure_element_ateccx08a        // device example
@@ -469,7 +512,7 @@
  * USEMODULE += psa_riot_hashes_sha_256
  *
  * will build the file at `sys/hashes/psa_riot_hashes/sha_256.c`, but none of the other files in
- * the directory).
+ * the directory.
  *
  * To enable submodules for your implementation add the following to the directory makefile:
  * @code
@@ -568,7 +611,10 @@
  * - `psa_hashes_sha1_ctx_t`
  * - `psa_hashes_sha224_ctx_t`
  * - `psa_hashes_sha256_ctx_t`
+ * - `psa_hashes_sha384_ctx_t`
  * - `psa_hashes_sha512_ctx_t`
+ * - `psa_hashes_sha512_224_ctx_t`
+ * - `psa_hashes_sha512_256_ctx_t`
  *
  * #### Ciphers
  * - `psa_cipher_aes_128_ctx_t`

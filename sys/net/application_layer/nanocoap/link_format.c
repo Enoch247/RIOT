@@ -58,16 +58,21 @@ static int _dirlist_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int m
             }
         }
 
-        if (*c == ',' || ctx->cur == ctx->end) {
-            int res;
+        bool found_end = false;
+        if (*c == ',') {
+            found_end = true;
+        }
+        else {
+            *ctx->cur++ = *c;
+        }
+
+        if (found_end || ctx->cur == ctx->end) {
             *ctx->cur = 0;
-            res = ctx->cb(ctx->buf, ctx->ctx);
+            int res = ctx->cb(ctx->buf, ctx->ctx);
             ctx->cur = ctx->buf;
             if (res < 0) {
                 return res;
             }
-        } else {
-            *ctx->cur++ = *c;
         }
     }
 
@@ -80,13 +85,13 @@ static int _dirlist_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int m
 }
 
 int nanocoap_link_format_get(nanocoap_sock_t *sock, const char *path,
-                             coap_link_format_handler_t cb, void *arg)
+                             coap_link_format_handler_t cb, void *arg,
+                             char *dirent_buf, size_t dirent_buf_len)
 {
-    char buffer[CONFIG_NANOCOAP_QS_MAX];
     struct dir_list_ctx ctx = {
-        .buf = buffer,
-        .end = buffer + sizeof(buffer) - 1,
-        .cur = buffer,
+        .buf = dirent_buf,
+        .end = dirent_buf + dirent_buf_len,
+        .cur = dirent_buf,
         .cb = cb,
         .ctx = arg,
     };
@@ -94,7 +99,8 @@ int nanocoap_link_format_get(nanocoap_sock_t *sock, const char *path,
                                        _dirlist_cb, &ctx);
 }
 
-int nanocoap_link_format_get_url(const char *url, coap_link_format_handler_t cb, void *arg)
+int nanocoap_link_format_get_url(const char *url, coap_link_format_handler_t cb, void *arg,
+                                 char *dirent_buf, size_t dirent_buf_len)
 {
     nanocoap_sock_t sock;
     int res = nanocoap_sock_url_connect(url, &sock);
@@ -102,7 +108,7 @@ int nanocoap_link_format_get_url(const char *url, coap_link_format_handler_t cb,
         return res;
     }
 
-    res = nanocoap_link_format_get(&sock, sock_urlpath(url), cb, arg);
+    res = nanocoap_link_format_get(&sock, sock_urlpath(url), cb, arg, dirent_buf, dirent_buf_len);
     nanocoap_sock_close(&sock);
 
     return res;

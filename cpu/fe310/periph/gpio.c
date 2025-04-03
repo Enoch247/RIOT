@@ -90,7 +90,7 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     return 0;
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     return (GPIO_REG(GPIO_INPUT_VAL) & (1 << pin)) ? 1 : 0;
 }
@@ -111,7 +111,7 @@ void gpio_toggle(gpio_t pin)
                        __ATOMIC_RELAXED);
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         _set_pin_reg(GPIO_OUTPUT_VAL, pin);

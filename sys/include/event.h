@@ -75,13 +75,13 @@
  *
  * static void custom_handler(event_t *event)
  * {
- *     custom_event_t *custom_event = (custom_event_t *)event;
+ *     custom_event_t *custom_event = container_of(event, custom_event_t, super);
  *     printf("triggered custom event with text: \"%s\"\n", custom_event->text);
  * }
  *
  * static custom_event_t custom_event = { .super.handler = custom_handler, .text = "CUSTOM EVENT" };
  *
- * [...] event_post(&queue, &custom_event)
+ * [...] event_post(&queue, &custom_event.super)
  * ~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * @{
@@ -464,6 +464,27 @@ static inline void event_loop(event_queue_t *queue)
 {
     event_loop_multi(queue, 1);
 }
+
+/**
+ * @brief Synchronize with the last event on the queue
+ *
+ * Blocks until the last event on the queue at the moment of calling this is
+ * processed.
+ *
+ * @warning May not be called from the event queue, as it would block forever.
+ * @warning If the queue has no waiter, this will block until the queue is
+ *          claimed. See @ref event_queue_claim()
+ *
+ * @param[in] queue event queue to sync with
+ *
+ * Usage example:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
+ * event_post(queue, my_event);
+ * // When event_sync() returns, my_event will have been processed.
+ * event_sync(queue);
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
+void event_sync(event_queue_t *queue);
 
 #ifdef __cplusplus
 }

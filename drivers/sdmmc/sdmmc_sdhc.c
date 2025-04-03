@@ -144,9 +144,9 @@ static_assert(SDHC_CONFIG_NUMOF < 3, "MCU supports only 2 SDHC peripherals");
 static_assert(SDHC_CONFIG_NUMOF < 2, "MCU supports only 1 SDHC peripheral");
 #endif
 
-XFA_CONST(sdmmc_devs, 0) sdmmc_dev_t * const _sdmmc_0 = (sdmmc_dev_t * const)&_sdhc_devs[0];
+XFA_CONST(sdmmc_dev_t * const, sdmmc_devs, 0) _sdmmc_0 = (sdmmc_dev_t * const)&_sdhc_devs[0];
 #if SDHC_CONFIG_NUMOF > 1
-XFA_CONST(sdmmc_devs, 0) sdmmc_dev_t * const _sdmmc_1 = (sdmmc_dev_t * const)&_sdhc_devs[1];
+XFA_CONST(sdmmc_dev_t * const, sdmmc_devs, 0) _sdmmc_1 = (sdmmc_dev_t * const)&_sdhc_devs[1];
 #endif
 
 static int _set_clock_rate(sdmmc_dev_t *dev, sdmmc_clock_rate_t rate);
@@ -484,7 +484,7 @@ static int _xfer_prepare(sdmmc_dev_t *dev, sdmmc_xfer_desc_t *xfer)
     /* TODO: at the moment only 32-bit words supported */
     assert((xfer->block_size % sizeof(uint32_t)) == 0);
 
-    /* indicate that a data transfer is perpared */
+    /* indicate that a data transfer is prepared */
     sdhc_dev->data_transfer = true;
 
     uint32_t tmr;
@@ -512,10 +512,6 @@ static int _xfer_execute(sdmmc_dev_t *dev, sdmmc_xfer_desc_t *xfer,
 {
     assert(xfer);
     assert((xfer->write && data_wr) || (!xfer->write && data_rd));
-
-    /* check the alignment required for the buffers */
-    assert(HAS_ALIGNMENT_OF(data_wr, SDMMC_CPU_DMA_ALIGNMENT));
-    assert(HAS_ALIGNMENT_OF(data_rd, SDMMC_CPU_DMA_ALIGNMENT));
 
     sdhc_dev_t *sdhc_dev = container_of(dev, sdhc_dev_t, sdmmc_dev);
 

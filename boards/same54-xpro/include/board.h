@@ -21,6 +21,7 @@
 #define BOARD_H
 
 #include "cpu.h"
+#include "periph/gpio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,13 +74,6 @@ extern "C" {
  */
 #define BTN0_PIN            GPIO_PIN(PB, 31)
 #define BTN0_MODE           GPIO_IN_PU
-/** @} */
-
-/**
- * @name ATA6561 STANDBY pin definition
- * @{
- */
-#define AT6561_STBY_PIN            GPIO_PIN(PC, 13)
 /** @} */
 
 /**

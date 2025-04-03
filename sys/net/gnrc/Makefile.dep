@@ -126,6 +126,10 @@ ifneq (,$(filter gnrc_rpl,$(USEMODULE)))
   USEMODULE += evtimer
 endif
 
+ifneq (,$(filter gnrc_ipv6_auto_subnets_eui,$(USEMODULE)))
+  USEMODULE += gnrc_ipv6_auto_subnets_simple
+endif
+
 ifneq (,$(filter gnrc_ipv6_auto_subnets_simple,$(USEMODULE)))
   USEMODULE += gnrc_ipv6_auto_subnets
 endif
@@ -206,6 +210,12 @@ ifneq (,$(filter gnrc_sixlowpan_border_router_default,$(USEMODULE)))
     USEMODULE += gnrc_sixlowpan_frag
   endif
   USEMODULE += gnrc_sixlowpan_iphc
+endif
+
+ifneq (,$(filter netdev_new_api,$(USEMODULE)))
+  ifneq (,$(filter gnrc_sixlowpan_frag%,$(USEMODULE)))
+    USEMODULE += gnrc_netif_pktq
+  endif
 endif
 
 ifneq (,$(filter gnrc_sixlowpan_frag,$(USEMODULE)))

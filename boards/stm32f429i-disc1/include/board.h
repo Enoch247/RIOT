@@ -31,9 +31,11 @@ extern "C" {
  * @{
  */
 #define LED0_PIN_NUM        13
+#define LED0_PORT           GPIO_PORT_G /**< GPIO port of LED 0 */
 #define LED0_PORT_NUM       PORT_G
 
 #define LED1_PIN_NUM        14
+#define LED1_PORT           GPIO_PORT_G /**< GPIO port of LED 1 */
 #define LED1_PORT_NUM       PORT_G
 /** @} */
 
@@ -53,6 +55,13 @@ extern "C" {
 #define L3GXXXX_SPI_CS      GPIO_PIN(PORT_C, 1) /**< SPI CS pin used for L3Gxxxx */
 #define L3GXXXX_INT1_PIN    GPIO_PIN(PORT_A, 1) /**< INT1 pin used for L3Gxxxx */
 #define L3GXXXX_INT2_PIN    GPIO_PIN(PORT_A, 2) /**< INT2/DRDY pin used for L3Gxxxx */
+/** @} */
+
+/**
+ * @brief stmpe811 driver parameters
+ * @{
+ */
+#define STMPE811_PARAM_XYCONV (STMPE811_MIRROR_Y | STMPE811_SWAP_XY)
 /** @} */
 
 #ifdef __cplusplus

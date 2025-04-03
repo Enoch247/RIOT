@@ -65,6 +65,11 @@ typedef uint16_t gpio_t;
 #define TIMER_CHANNEL_NUMOF 7
 
 /**
+ * @brief   Lowest address of the RAM, peripherals are below
+ */
+#define RAMSTART    0x200
+
+/**
  * @name    Override flank selection values
  * @{
  */
@@ -90,6 +95,42 @@ enum {
     P5 = 5,                 /**< PORT 5 */
     P6 = 6,                 /**< PORT 6 */
 };
+
+#ifndef DOXYGEN
+#define HAVE_GPIO_STATE_T
+typedef enum {
+    GPIO_INPUT,
+    GPIO_OUTPUT_PUSH_PULL,
+    GPIO_OUTPUT_OPEN_DRAIN,     /**< not supported */
+    GPIO_OUTPUT_OPEN_SOURCE,    /**< not supported */
+    GPIO_USED_BY_PERIPHERAL,    /**< not supported */
+    GPIO_DISCONNECT             = GPIO_INPUT,
+} gpio_state_t;
+
+#define HAVE_GPIO_SLEW_T
+typedef enum {
+    GPIO_SLEW_SLOWEST = 0,
+    GPIO_SLEW_SLOW = 0,
+    GPIO_SLEW_FAST = 0,
+    GPIO_SLEW_FASTEST = 0,
+} gpio_slew_t;
+
+#define HAVE_GPIO_PULL_STRENGTH_T
+typedef enum {
+    GPIO_PULL_WEAKEST = 0,
+    GPIO_PULL_WEAK = 0,
+    GPIO_PULL_STRONG = 0,
+    GPIO_PULL_STRONGEST = 0
+} gpio_pull_strength_t;
+
+#define HAVE_GPIO_DRIVE_STRENGTH_T
+typedef enum {
+    GPIO_DRIVE_WEAKEST = 0,
+    GPIO_DRIVE_WEAK = 0,
+    GPIO_DRIVE_STRONG = 0,
+    GPIO_DRIVE_STRONGEST = 0
+} gpio_drive_strength_t;
+#endif /* !DOXYGEN */
 
 /**
  * @brief   Enable or disable a pin to be used by peripheral modules
@@ -312,6 +353,17 @@ typedef enum {
 } msp430_timer_clock_source_t;
 
 /**
+ * @brief   IDs of the different clock domains on the MSP430
+ *
+ * These can be used as internal clock sources for peripherals
+ */
+typedef enum {
+    MSP430_CLOCK_SUBMAIN,                               /**< Subsystem main clock */
+    MSP430_CLOCK_AUXILIARY,                             /**< Auxiliary clock */
+    MSP430_CLOCK_NUMOF,                                 /**< Number of clock domains */
+} msp430_clock_t;
+
+/**
  * @brief   Timer configuration on an MSP430 timer
  */
 typedef struct {
@@ -325,6 +377,68 @@ typedef struct {
     REG16 *irq_flags;
     msp430_timer_clock_source_t clock_source;   /**< Clock source to use */
 } timer_conf_t;
+
+/**
+ * @name    MSP430 Common Peripheral Register Maps
+ *
+ * @details The addresses will be provided by the linker script using the
+ *          vendor files.
+ * @{
+ */
+/**
+ * @brief   Register map of GPIO PORT 1
+ */
+extern msp430_port_p1_p2_t PORT_1;
+/**
+ * @brief   Register map of GPIO PORT 2
+ */
+extern msp430_port_p1_p2_t PORT_2;
+/**
+ * @brief   Register map of GPIO PORT 3
+ */
+extern msp430_port_p3_p6_t PORT_3;
+/**
+ * @brief   Register map of GPIO PORT 4
+ */
+extern msp430_port_p3_p6_t PORT_4;
+/**
+ * @brief   Register map of GPIO PORT 5
+ */
+extern msp430_port_p3_p6_t PORT_5;
+/**
+ * @brief   Register map of GPIO PORT 6
+ */
+extern msp430_port_p3_p6_t PORT_6;
+
+/**
+ * @brief   Register map of the timer A control registers
+ */
+extern msp430_timer_t TIMER_A;
+
+/**
+ * @brief   IRQ flags for TIMER_A
+ *
+ * Called TAIV in the data sheet / vendor files. This shallow alias
+ * makes the name more readable and does impedance matching for the type
+ * (`volatile uint16_t` vs `volatile short`).
+ */
+extern REG16 TIMER_A_IRQFLAGS;
+
+/**
+ * @brief   IRQ flags for TIMER_B
+ *
+ * Called TBIV in the data sheet / vendor files. This shallow alias
+ * makes the name more readable and does impedance matching for the type
+ * (`volatile uint16_t` vs `volatile short`).
+ */
+extern REG16 TIMER_B_IRQFLAGS;
+
+/**
+ * @brief   Register map of the timer B control registers
+ */
+extern msp430_timer_t TIMER_B;
+/** @} */
+
 
 /**
  * @brief   Initialize the basic clock system to provide the main clock,
@@ -366,6 +480,28 @@ uint32_t PURE msp430_submain_clock_freq(void);
  * @note    This is only useful when implementing MSP430 peripheral drivers
  */
 uint32_t PURE msp430_auxiliary_clock_freq(void);
+
+/**
+ * @brief   Increase the refcount of the given clock
+ *
+ * @param[in]   clock       clock domain to acquire
+ *
+ * @warning This is an internal function and must only be called from
+ *          peripheral drivers
+ * @note    An assertion will blow when the count exceeds capacity
+ */
+void msp430_clock_acquire(msp430_clock_t clock);
+
+/**
+ * @brief   Decrease the refcount of the subsystem main clock
+ *
+ * @param[in]   clock       clock domain to acquire
+ *
+ * @warning This is an internal function and must only be called from
+ *          peripheral drivers
+ * @note    An assertion will blow when the count drops below zero
+ */
+void msp430_clock_release(msp430_clock_t clock);
 
 #ifdef __cplusplus
 }

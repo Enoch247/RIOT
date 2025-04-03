@@ -7,17 +7,12 @@
  */
 
 /**
- * @ingroup     cpu_native
- * @ingroup     drivers_periph_gpio
- * @{
- *
  * @file
- * @brief       native GPIO implementation
- *
- * @author      Benjamin Valentin <benpicco@googlemail.com>
+ * @ingroup cpu_native
+ * @ingroup drivers_periph_gpio
+ * @brief   native GPIO implementation
+ * @author  Benjamin Valentin <benpicco@googlemail.com>
  */
-
-#define _GNU_SOURCE
 
 #include <errno.h>
 #include <fcntl.h>
@@ -167,7 +162,7 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     return 0;
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     struct gpiohandle_data data;
 
@@ -210,7 +205,7 @@ void gpio_toggle(gpio_t pin)
     _set(pin, !gpio_read(pin));
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     _set(pin, value);
 }
@@ -314,5 +309,3 @@ void gpio_irq_disable(gpio_t pin)
 }
 
 #endif /* MODULE_PERIPH_GPIO_IRQ */
-
-/** @} */

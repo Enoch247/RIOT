@@ -35,6 +35,16 @@ PSEUDOMODULES += board_software_reset
 
 PSEUDOMODULES += arduino_pwm
 PSEUDOMODULES += arduino_serial_stdio
+## @defgroup pseudomodule_arm_stack_limit arm_stack_limit
+## @{
+## @brief Set MSP/PSP stack lower limit
+##
+## Use PSPLIM and MSPLIM ARM registers to set the lower limit of a stack
+## This is a protection mechanism to catch stack overflow early before it
+## can corrupt adjacent memory. Only available on ARMv8-M architecture.
+PSEUDOMODULES += cortexm_stack_limit
+## @}
+
 PSEUDOMODULES += can_mbox
 PSEUDOMODULES += can_pm
 PSEUDOMODULES += can_raw
@@ -68,8 +78,10 @@ PSEUDOMODULES += event_timeout
 PSEUDOMODULES += event_timeout_ztimer
 PSEUDOMODULES += evtimer_mbox
 PSEUDOMODULES += fatfs_vfs_format
+PSEUDOMODULES += fdcan
 PSEUDOMODULES += fmt_%
 PSEUDOMODULES += gcoap_forward_proxy
+PSEUDOMODULES += gcoap_forward_proxy_thread
 PSEUDOMODULES += gcoap_fileserver
 PSEUDOMODULES += gcoap_dtls
 ## @addtogroup net_gcoap_dns
@@ -96,6 +108,7 @@ PSEUDOMODULES += gnrc_dhcpv6_client_simple_pd
 ## @}
 ## @}
 PSEUDOMODULES += gnrc_ipv6_auto_subnets_auto_init
+PSEUDOMODULES += gnrc_ipv6_auto_subnets_eui
 PSEUDOMODULES += gnrc_ipv6_auto_subnets_simple
 PSEUDOMODULES += gnrc_ipv6_classic
 PSEUDOMODULES += gnrc_ipv6_default
@@ -346,16 +359,24 @@ PSEUDOMODULES += psa_riot_cipher_aes_128_ecb
 PSEUDOMODULES += psa_riot_cipher_aes_128_cbc
 PSEUDOMODULES += psa_riot_cipher_aes_192_cbc
 PSEUDOMODULES += psa_riot_cipher_aes_256_cbc
+PSEUDOMODULES += psa_riot_cipher_chacha20
 PSEUDOMODULES += psa_riot_hashes_md5
 PSEUDOMODULES += psa_riot_hashes_sha_1
 PSEUDOMODULES += psa_riot_hashes_sha_224
 PSEUDOMODULES += psa_riot_hashes_sha_256
+PSEUDOMODULES += psa_riot_hashes_sha_384
 PSEUDOMODULES += psa_riot_hashes_sha_512
+PSEUDOMODULES += psa_riot_hashes_sha3_256
+PSEUDOMODULES += psa_riot_hashes_sha3_384
+PSEUDOMODULES += psa_riot_hashes_sha3_512
+PSEUDOMODULES += psa_riot_hashes_sha_512_224
+PSEUDOMODULES += psa_riot_hashes_sha_512_256
 PSEUDOMODULES += psa_riot_hashes_hmac_sha256
 PSEUDOMODULES += fortuna_reseed
 PSEUDOMODULES += riotboot_%
 PSEUDOMODULES += rtt_cmd
 PSEUDOMODULES += saul_adc
+PSEUDOMODULES += saul_bat_voltage
 PSEUDOMODULES += saul_default
 PSEUDOMODULES += saul_gpio
 PSEUDOMODULES += saul_nrf_temperature
@@ -390,6 +411,7 @@ PSEUDOMODULES += servo_timer
 PSEUDOMODULES += servo_saul
 ## @}
 
+PSEUDOMODULES += shell_builtin_cmd_help_json
 PSEUDOMODULES += shell_cmd_app_metadata
 PSEUDOMODULES += shell_cmd_at30tse75x
 PSEUDOMODULES += shell_cmd_benchmark_udp
@@ -448,6 +470,7 @@ PSEUDOMODULES += shell_cmd_vfs
 PSEUDOMODULES += shell_cmds_default
 PSEUDOMODULES += shell_hooks
 PSEUDOMODULES += shell_lock_auto_locking
+PSEUDOMODULES += shield_llcc68
 PSEUDOMODULES += shield_w5100
 PSEUDOMODULES += slipdev_stdio
 PSEUDOMODULES += slipdev_l2addr
@@ -468,6 +491,13 @@ PSEUDOMODULES += soft_uart_modecfg
 PSEUDOMODULES += stdin
 PSEUDOMODULES += stdio_available
 PSEUDOMODULES += stdio_cdc_acm
+## @defgroup sys_stdio_default	Default STDIO provider
+## @ingroup sys_stdio
+## @{
+## This module selects the default STDIO method of a given board.
+## It will be enabled by default if no other stdio method is selected.
+PSEUDOMODULES += stdio_default
+## @}
 PSEUDOMODULES += stdio_dispatch
 PSEUDOMODULES += stdio_ethos
 PSEUDOMODULES += stdio_nimble_debug

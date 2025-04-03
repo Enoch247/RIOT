@@ -31,6 +31,10 @@ void saul_init_devs(void)
         extern void auto_init_saul_adc(void);
         auto_init_saul_adc();
     }
+    if (IS_USED(MODULE_SAUL_BAT_VOLTAGE)) {
+        extern void auto_init_saul_bat_voltage(void);
+        auto_init_saul_bat_voltage();
+    }
     if (IS_USED(MODULE_SAUL_GPIO)) {
         extern void auto_init_gpio(void);
         auto_init_gpio();
@@ -206,6 +210,10 @@ void saul_init_devs(void)
     if (IS_USED(MODULE_MAG3110)) {
         extern void auto_init_mag3110(void);
         auto_init_mag3110();
+    }
+    if (IS_USED(MODULE_MAX31855)) {
+        extern void auto_init_max31855(void);
+        auto_init_max31855();
     }
     if (IS_USED(MODULE_MCP47XX)) {
         extern void auto_init_mcp47xx(void);

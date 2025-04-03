@@ -119,14 +119,22 @@ static void _power_off(void)
 static bool _l2filter(uint8_t *mhr)
 {
     uint8_t dst_addr[IEEE802154_LONG_ADDRESS_LEN];
+    uint8_t src_addr[IEEE802154_LONG_ADDRESS_LEN];
     le_uint16_t dst_pan;
+    le_uint16_t src_pan;
     uint8_t pan_bcast[] = IEEE802154_PANID_BCAST;
 
-    int addr_len = ieee802154_get_dst(mhr, dst_addr, &dst_pan);
+    int dst_addr_len = ieee802154_get_dst(mhr, dst_addr, &dst_pan);
+
+    int src_addr_len = ieee802154_get_src(mhr, src_addr, &src_pan);
 
     if ((mhr[0] & IEEE802154_FCF_TYPE_MASK) == IEEE802154_FCF_TYPE_BEACON) {
-        if ((memcmp(&nrf802154_pan_id, pan_bcast, 2) == 0)) {
-            return true;
+        if (src_addr_len == IEEE802154_SHORT_ADDRESS_LEN ||
+            src_addr_len == IEEE802154_LONG_ADDRESS_LEN){
+            if ((memcmp(&nrf802154_pan_id, src_pan.u8, 2) == 0) ||
+                (memcmp(&nrf802154_pan_id, pan_bcast, 2) == 0)) {
+                return true;
+            }
         }
     }
     /* filter PAN ID */
@@ -138,11 +146,11 @@ static bool _l2filter(uint8_t *mhr)
     }
 
     /* check destination address */
-    if (((addr_len == IEEE802154_SHORT_ADDRESS_LEN) &&
-          (memcmp(nrf802154_short_addr, dst_addr, addr_len) == 0 ||
-           memcmp(ieee802154_addr_bcast, dst_addr, addr_len) == 0)) ||
-        ((addr_len == IEEE802154_LONG_ADDRESS_LEN) &&
-          (memcmp(nrf802154_long_addr, dst_addr, addr_len) == 0))) {
+    if (((dst_addr_len == IEEE802154_SHORT_ADDRESS_LEN) &&
+          (memcmp(nrf802154_short_addr, dst_addr, dst_addr_len) == 0 ||
+           memcmp(ieee802154_addr_bcast, dst_addr, dst_addr_len) == 0)) ||
+        ((dst_addr_len == IEEE802154_LONG_ADDRESS_LEN) &&
+          (memcmp(nrf802154_long_addr, dst_addr, dst_addr_len) == 0))) {
         return true;
     }
 
@@ -337,10 +345,13 @@ static int _read(ieee802154_dev_t *dev, void *buf, size_t max_size,
             radio_info->lqi = (uint8_t)(hwlqi > UINT8_MAX/ED_RSSISCALE
                                        ? UINT8_MAX
                                        : hwlqi * ED_RSSISCALE);
-            /* We calculate RSSI from LQI, since it's already 8-bit
-               saturated (see page 321 of product spec v1.1) */
-            radio_info->rssi = _hwval_to_ieee802154_dbm(radio_info->lqi)
-                               + IEEE802154_RADIO_RSSI_OFFSET;
+            /* Converting the hardware-provided LQI value back to the
+               original RSSI value is not properly documented in the PS.
+               The linear mapping used here has been found empirically
+               through comparison with the RSSI value provided by NRF_RADIO->RSSISAMPLE
+               after enabling the ADDRESS_RSSISTART short. */
+            int8_t rssi_dbm = hwlqi + ED_RSSIOFFS - 1;
+            radio_info->rssi = ieee802154_dbm_to_rssi(rssi_dbm);
         }
         memcpy(buf, &rxbuf[1], pktlen);
     }

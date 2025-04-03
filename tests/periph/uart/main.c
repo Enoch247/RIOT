@@ -22,13 +22,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "board.h"
+#include "bitfield.h"
+#include "msg.h"
+#include "periph/uart.h"
+#include "ringbuffer.h"
 #include "shell.h"
 #include "thread.h"
-#include "msg.h"
-#include "ringbuffer.h"
-#include "periph/uart.h"
-#include "xtimer.h"
+#include "ztimer.h"
 
 #ifdef MODULE_STDIO_UART
 #include "stdio_uart.h"
@@ -44,7 +44,7 @@
 #define PRINTER_PRIO        (THREAD_PRIORITY_MAIN - 1)
 #define PRINTER_TYPE        (0xabcd)
 
-#define POWEROFF_DELAY      (250U * US_PER_MS)      /* quarter of a second */
+#define POWEROFF_DELAY_MS   (250U)
 
 /* if stdio is not done via UART, allow to use the stdio UART for the test */
 #ifndef MODULE_STDIO_UART
@@ -87,6 +87,8 @@ static uart_stop_bits_t stop_bits_lut[] = { UART_STOP_BITS_1, UART_STOP_BITS_2 }
 static int stop_bits_lut_len = ARRAY_SIZE(stop_bits_lut);
 #endif
 
+static BITFIELD(uarts_initialized_mask, UART_NUMOF);
+
 static int parse_dev(char *arg)
 {
     unsigned dev = atoi(arg);
@@ -125,19 +127,28 @@ static int _self_test(uart_t dev, unsigned baud)
 {
     const char test_string[] = "Hello UART!";
 
-    if (uart_init(UART_DEV(dev), baud, rx_cb, (void *)(uintptr_t)dev)) {
-        printf("error configuring %u baud\n", baud);
-        return -1;
+    int res = uart_init(UART_DEV(dev), baud, rx_cb, (void *)(uintptr_t)dev);
+    if (res == -ENOTSUP) {
+        printf("warning: unsupported baudrate %u\n", baud);
+        return 0;
+    }
+    else if (res != 0) {
+        puts("error during uart_init");
+        goto failure;
     }
 
-    test_mode = true;
-
     uart_write(dev, (uint8_t*)test_string, sizeof(test_string));
+    /* wait 1ms for rx callback to be triggered by HW */
+    ztimer_sleep(ZTIMER_MSEC, 1);
     for (unsigned i = 0; i < sizeof(test_string); ++i) {
         int c = ringbuffer_get_one(&ctx[dev].rx_buf);
+        if (c == -1) {
+            printf("missing char 0x%x in rx_buf at index %u\n", test_string[i], i);
+            goto failure;
+        }
         if (c != test_string[i]) {
-            printf("mismatch at index %u: %x != %x\n", i, c, test_string[i]);
-            return -1;
+            printf("mismatch at index %u: 0x%x != 0x%x\n", i, c, test_string[i]);
+            goto failure;
         }
     }
 
@@ -151,14 +162,14 @@ static int _self_test(uart_t dev, unsigned baud)
         int c = ringbuffer_get_one(&ctx[dev].rx_buf);
         if (c != STX) {
             printf("expected start condition, got %x\n", c);
-            return -1;
+            goto failure;
         }
 
         c = ringbuffer_get_one(&ctx[dev].rx_buf);
         if (c != test_string[i]) {
             printf("mismatch at index %u: %x != %x, start condition reported\n",
                    i, c, test_string[i]);
-            return -1;
+            goto failure;
         }
     }
     uart_rxstart_irq_disable(dev);
@@ -172,8 +183,15 @@ static int _self_test(uart_t dev, unsigned baud)
     uart_collision_detect_disable(dev);
 #endif
 
+    uart_poweroff(UART_DEV(dev));
+
     test_mode = false;
     return 0;
+
+failure:
+    /* flush ringbuffer */
+    ringbuffer_remove(&ctx[dev].rx_buf, UART_BUFSIZE);
+    return -1;
 }
 
 static void *printer(void *arg)
@@ -215,7 +233,7 @@ static void sleep_test(int num, uart_t uart)
 {
     printf("UARD_DEV(%i): test uart_poweron() and uart_poweroff()  ->  ", num);
     uart_poweroff(uart);
-    xtimer_usleep(POWEROFF_DELAY);
+    ztimer_sleep(ZTIMER_MSEC, POWEROFF_DELAY_MS);
     uart_poweron(uart);
     puts("[OK]");
 }
@@ -236,6 +254,11 @@ static int cmd_init(int argc, char **argv)
     }
     baud = strtol(argv[2], NULL, 0);
 
+    if (bf_isset(uarts_initialized_mask, dev)) {
+        uart_poweroff(UART_DEV(dev));
+        bf_unset(uarts_initialized_mask, dev);
+    }
+
     /* initialize UART */
     res = uart_init(UART_DEV(dev), baud, rx_cb, (void *)(intptr_t)dev);
     if (res == UART_NOBAUD) {
@@ -248,12 +271,35 @@ static int cmd_init(int argc, char **argv)
     }
     printf("Success: Initialized UART_DEV(%i) at BAUD %"PRIu32"\n", dev, baud);
 
+    bf_set(uarts_initialized_mask, dev);
+
     /* also test if poweron() and poweroff() work (or at least don't break
      * anything) */
     sleep_test(dev, UART_DEV(dev));
 
     return 0;
 }
+
+SHELL_COMMAND(init, "Initialize a UART device with a given baudrate", cmd_init);
+
+static int cmd_off(int argc, char **argv)
+{
+    if (argc != 2) {
+        printf("usage: %s <dev>\n", argv[0]);
+        return 1;
+    }
+
+    int dev = parse_dev(argv[1]);
+    if (dev < 0) {
+        return 1;
+    }
+
+    uart_poweroff(UART_DEV(dev));
+
+    return 0;
+}
+
+SHELL_COMMAND(off, "Power off the given UART device", cmd_off);
 
 #ifdef MODULE_PERIPH_UART_MODECFG
 static int cmd_mode(int argc, char **argv)
@@ -321,6 +367,8 @@ static int cmd_mode(int argc, char **argv)
 
     return 0;
 }
+
+SHELL_COMMAND(mode, "Setup data bits, stop bits and parity for a given UART device", cmd_mode);
 #endif /* MODULE_PERIPH_UART_MODECFG */
 
 static int cmd_send(int argc, char **argv)
@@ -343,6 +391,8 @@ static int cmd_send(int argc, char **argv)
     return 0;
 }
 
+SHELL_COMMAND(send, "Send a string through given UART device", cmd_send);
+
 static int cmd_test(int argc, char **argv)
 {
     int dev;
@@ -359,17 +409,26 @@ static int cmd_test(int argc, char **argv)
 
     puts("[START]");
 
+    if (bf_isset(uarts_initialized_mask, dev)) {
+        uart_poweroff(UART_DEV(dev));
+        bf_unset(uarts_initialized_mask, dev);
+    }
+
     /* run self test with different baud rates */
+    test_mode = true;
     for (unsigned i = 1; i <= 12; ++i) {
         if (_self_test(dev, 9600 * i)) {
             puts("[FAILURE]");
             return -1;
         }
     }
+    test_mode = false;
 
     puts("[SUCCESS]");
     return 0;
 }
+
+SHELL_COMMAND(test, "Run an automated test on a UART with RX and TX connected", cmd_test);
 
 static int cmd_eol_cr(int argc, char **argv)
 {
@@ -379,6 +438,8 @@ static int cmd_eol_cr(int argc, char **argv)
     return 0;
 }
 
+SHELL_COMMAND(eol_cr, "Set CR as the end-of-line for send", cmd_eol_cr);
+
 static int cmd_eol_lf(int argc, char **argv)
 {
     (void)argc;
@@ -386,6 +447,8 @@ static int cmd_eol_lf(int argc, char **argv)
     _endline = "\n";
     return 0;
 }
+
+SHELL_COMMAND(eol_lf, "Set LF as the end-of-line for send (default)", cmd_eol_lf);
 
 static int cmd_eol_crlf(int argc, char **argv)
 {
@@ -395,18 +458,7 @@ static int cmd_eol_crlf(int argc, char **argv)
     return 0;
 }
 
-static const shell_command_t shell_commands[] = {
-    { "init", "Initialize a UART device with a given baudrate", cmd_init },
-#ifdef MODULE_PERIPH_UART_MODECFG
-    { "mode", "Setup data bits, stop bits and parity for a given UART device", cmd_mode },
-#endif
-    { "send", "Send a string through given UART device", cmd_send },
-    { "test", "Run an automated test on a UART with RX and TX connected", cmd_test },
-    { "eol_cr", "Set CR as the end-of-line for send", cmd_eol_cr },
-    { "eol_crlf", "Set CRLF as the end-of-line for send", cmd_eol_crlf },
-    { "eol_lf", "Set LF as the end-of-line for send (default)", cmd_eol_lf },
-    { NULL, NULL, NULL }
-};
+SHELL_COMMAND(eol_crlf, "Set CRLF as the end-of-line for send", cmd_eol_crlf);
 
 int main(void)
 {
@@ -447,6 +499,6 @@ int main(void)
 
     /* run the shell */
     char line_buf[SHELL_BUFSIZE];
-    shell_run(shell_commands, line_buf, SHELL_BUFSIZE);
+    shell_run(NULL, line_buf, SHELL_BUFSIZE);
     return 0;
 }

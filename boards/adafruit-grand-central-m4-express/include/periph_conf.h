@@ -57,7 +57,8 @@ extern "C" {
  */
 
 /* ADC Default values */
-#define ADC_PRESCALER                       ADC_CTRLA_PRESCALER_DIV128
+#define ADC_GCLK_SRC                        SAM0_GCLK_PERIPH    /**< clock used for ADC */
+#define ADC_PRESCALER                       ADC_CTRLA_PRESCALER_DIV8
 
 #define ADC_NEG_INPUT                       ADC_INPUTCTRL_MUXNEG(0x18u)
 #define ADC_REF_DEFAULT                     ADC_REFCTRL_REFSEL_INTVCC1
@@ -204,7 +205,7 @@ static const tc32_conf_t timer_config[] = {
  * @{
  */
 static const spi_conf_t spi_config[] = {
-    {   /* SPI on XIO connector */
+    {   /* SPI on XIO connector *AND* SPI on ISP */
         .dev      = &(SERCOM7->SPI),
         .miso_pin = GPIO_PIN(PD, 11),   /* D50 MISO */
         .mosi_pin = GPIO_PIN(PD, 8),    /* D51 MOSI */

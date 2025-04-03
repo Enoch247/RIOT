@@ -1,10 +1,9 @@
 include ../Makefile.pkg_common
 
-include $(RIOTBASE)/tests/Makefile.boards.netif
-BOARD_WHITELIST += $(BOARD_PROVIDES_NETIF)
+FEATURES_REQUIRED += netif
 # Cannot run the test on `murdock` in `native`
 #   open(/dev/net/tun): No such file or directory
-TEST_ON_CI_BLACKLIST += native native64
+TEST_ON_CI_BLACKLIST += native32 native64
 
 # Test fails pretty regularly on CI
 TEST_ON_CI_BLACKLIST += esp32-wroom-32

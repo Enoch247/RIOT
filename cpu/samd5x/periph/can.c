@@ -20,9 +20,10 @@
 #include <assert.h>
 #include <string.h>
 
+#include "can/device.h"
 #include "periph/can.h"
 #include "periph/gpio.h"
-#include "can/device.h"
+#include "pm_layered.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
@@ -107,6 +108,34 @@ static const struct can_bittiming_const bittiming_const = {
 
 static int _power_on(can_t *dev)
 {
+    /* CAN required CLK_CANx_APB and GCLK_CANx to be running and will not
+     * request any clock by itself. We can ensure both clocks to be running
+     * by preventing the MCU from entering IDLE state.
+     *
+     * The SAMD5x/SAME5x Family Data Sheet says in Section
+     * "39.6.9 Sleep Mode Operation" says:
+     *
+     * > The CAN can be configured to operate in any idle sleep mode. The CAN
+     * > cannot operate in Standby sleep mode.
+     * >
+     * > [...]
+     * >
+     * > To leave low power mode, CLK_CANx_APB and GCLK_CANx must be active
+     * > before writing CCCR.CSR to '0'. The CAN will acknowledge this by
+     * > resetting CCCR.CSA = 0. Afterwards, the application can restart CAN
+     * > communication by resetting bit CCCR.INIT.
+     *
+     * tl;dr: At most SAM0_PM_IDLE is allowed while not shutting down the CAN
+     * controller, but even that will pause communication (including RX).
+     */
+    if (IS_USED(MODULE_PM_LAYERED)) {
+        pm_block(SAM0_PM_IDLE);
+    }
+
+    if (gpio_is_valid(dev->conf->enable_pin)) {
+        gpio_write(dev->conf->enable_pin, !dev->conf->enable_pin_active_low);
+    }
+
     if (dev->conf->can == CAN0) {
         DEBUG_PUTS("CAN0 controller is used");
         MCLK->AHBMASK.reg |= MCLK_AHBMASK_CAN0;
@@ -125,6 +154,10 @@ static int _power_on(can_t *dev)
 
 static int _power_off(can_t *dev)
 {
+    if (IS_USED(MODULE_PM_LAYERED)) {
+        pm_unblock(SAM0_PM_IDLE);
+    }
+
     if (dev->conf->can == CAN0) {
         DEBUG_PUTS("CAN0 controller is used");
         MCLK->AHBMASK.reg &= ~MCLK_AHBMASK_CAN0;
@@ -136,6 +169,10 @@ static int _power_off(can_t *dev)
     else {
         DEBUG_PUTS("Unsupported CAN channel");
         return -1;
+    }
+
+    if (gpio_is_valid(dev->conf->enable_pin)) {
+        gpio_write(dev->conf->enable_pin, dev->conf->enable_pin_active_low);
     }
 
     return 0;
@@ -302,25 +339,40 @@ void can_init(can_t *dev, const can_conf_t *conf)
 
     memcpy(&dev->candev.bittiming, &timing, sizeof(timing));
     dev->conf = conf;
+
+    if (gpio_is_valid(conf->enable_pin)) {
+        /* In case conf->enable_pin is not initialized aid debugging with a
+         * blown assertion */
+        assert((uint32_t)conf->enable_pin);
+        gpio_init(conf->enable_pin, conf->enable_pin_mode);
+        gpio_write(conf->enable_pin, conf->enable_pin_active_low);
+    }
 }
 
 static void _dump_msg_ram_section(can_t *dev)
 {
     puts("start address|\tsize of section");
-    printf("Standard filters|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.std_filter),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
-    printf("Extended filters|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.ext_filter),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
-    printf("Rx FIFO 0|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.rx_fifo_0),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
-    printf("Rx FIFO 1|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.rx_fifo_1),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
-    printf("Rx buffer|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.rx_buffer),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_buffer)));
-    printf("Tx event FIFO|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.tx_event_fifo),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
-    printf("Tx buffer|\t0x%08lx|\t%lu\n", (uint32_t)(dev->msg_ram_conf.tx_fifo_queue),
-                                        (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
+    printf("Standard filters|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+           (uint32_t)(dev->msg_ram_conf.std_filter),
+           (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
+    printf("Extended filters|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+           (uint32_t)(dev->msg_ram_conf.ext_filter),
+           (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
+    printf("Rx FIFO 0|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+           (uint32_t)(dev->msg_ram_conf.rx_fifo_0),
+           (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
+    printf("Rx FIFO 1|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+           (uint32_t)(dev->msg_ram_conf.rx_fifo_1),
+           (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
+    printf("Rx buffer|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+            (uint32_t)(dev->msg_ram_conf.rx_buffer),
+            (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_buffer)));
+    printf("Tx event FIFO|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+            (uint32_t)(dev->msg_ram_conf.tx_event_fifo),
+            (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
+    printf("Tx buffer|\t0x%08" PRIx32 "|\t%" PRIu32 "\n",
+            (uint32_t)(dev->msg_ram_conf.tx_fifo_queue),
+            (uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
 }
 
 static int _init(candev_t *candev)
@@ -346,18 +398,18 @@ static int _init(candev_t *candev)
 
     /*Configure the start addresses of the RAM message sections */
     dev->conf->can->SIDFC.reg = CAN_SIDFC_FLSSA((uint32_t)(dev->msg_ram_conf.std_filter))
-                            | CAN_SIDFC_LSS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
+                              | CAN_SIDFC_LSS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
     dev->conf->can->XIDFC.reg = CAN_XIDFC_FLESA((uint32_t)(dev->msg_ram_conf.ext_filter))
-                            | CAN_XIDFC_LSE((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
+                              | CAN_XIDFC_LSE((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
     dev->conf->can->RXF0C.reg = CAN_RXF0C_F0SA((uint32_t)(dev->msg_ram_conf.rx_fifo_0))
-                            | CAN_RXF0C_F0S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
+                              | CAN_RXF0C_F0S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
     dev->conf->can->RXF1C.reg = CAN_RXF1C_F1SA((uint32_t)(dev->msg_ram_conf.rx_fifo_1))
-                            | CAN_RXF1C_F1S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
+                              | CAN_RXF1C_F1S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
     dev->conf->can->RXBC.reg = CAN_RXBC_RBSA((uint32_t)(dev->msg_ram_conf.rx_buffer));
     dev->conf->can->TXEFC.reg = CAN_TXEFC_EFSA((uint32_t)(dev->msg_ram_conf.tx_event_fifo))
-                            | CAN_TXEFC_EFS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
+                              | CAN_TXEFC_EFS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
     dev->conf->can->TXBC.reg = CAN_TXBC_TBSA((uint32_t)(dev->msg_ram_conf.tx_fifo_queue))
-                            | CAN_TXBC_TFQS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
+                              | CAN_TXBC_TFQS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
 
     /* In the vendor file, the data field size in CanMramTxbe is set to 64 bytes
         although it can be configurable. That's why 64 bytes is used here by default */
@@ -386,6 +438,8 @@ static int _init(candev_t *candev)
     dev->conf->can->IE.reg |= CAN_IE_RF0NE | CAN_IE_RF1NE;
     /* Enable transmission events interrupts */
     dev->conf->can->IE.reg |= CAN_IE_TEFNE;
+    /* Enable errors interrupts */
+    dev->conf->can->IE.reg |= CAN_IE_PEDE | CAN_IE_PEAE | CAN_IE_BOE | CAN_IE_EWE | CAN_IE_EPE;
     /* Enable the interrupt lines */
     dev->conf->can->ILE.reg = CAN_ILE_EINT0 | CAN_ILE_EINT1;
 
@@ -412,6 +466,9 @@ static uint8_t _form_message_marker(can_mm_t *can_mm)
 
 static int _send(candev_t *candev, const struct can_frame *frame)
 {
+    /* this assertion ensures the EFF-FLAG is set or the id does not exceed the CAN_SFF_MASK*/
+    assert( (frame->can_id & CAN_EFF_FLAG)
+            || ((frame->can_id & CAN_SFF_MASK) == (frame->can_id & CAN_EFF_MASK)) );
     can_t *dev = container_of(candev, can_t, candev);
 
     if (frame->can_dlc > CAN_MAX_DLEN) {
@@ -432,22 +489,27 @@ static int _send(candev_t *candev, const struct can_frame *frame)
     DEBUG("Tx FIFO get index = %u\n", fifo_queue_get_idx);
     can_mm.put = fifo_queue_put_idx;
     can_mm.get = fifo_queue_get_idx;
-
+    uint32_t txbe0 = 0;
+    uint32_t txbe1 = 0;
     if (frame->can_id & CAN_EFF_FLAG) {
         DEBUG_PUTS("Extended ID");
-        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.ID = frame->can_id & CAN_EFF_MASK;
-        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.XTD = 1;
+        txbe0 = CAN_TXBE_0_ID(frame->can_id & CAN_EFF_MASK) | CAN_TXBE_0_XTD;
     }
     else {
         DEBUG_PUTS("Standard identifier");
-        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.ID = (frame->can_id & CAN_SFF_MASK) << 18;
-        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.XTD = 0;
+        txbe0 = CAN_TXBE_0_ID((frame->can_id & CAN_SFF_MASK) << 18);
     }
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.RTR = (frame->can_id & CAN_RTR_FLAG) >> 30;
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.bit.ESI = 1;
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_1.bit.DLC = frame->can_dlc;
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_1.bit.EFC = 1;
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_1.bit.MM = _form_message_marker(&can_mm);
+    txbe0 |= (((frame->can_id & CAN_RTR_FLAG) >> 30) << CAN_TXBE_0_RTR_Pos);
+    txbe0 |= CAN_TXBE_0_ESI;
+    /* Write the prepared word */
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_0.reg = txbe0;
+
+    /* Prepare second word */
+    txbe1 = CAN_TXBE_1_DLC(frame->can_dlc) | CAN_TXBE_1_EFC |
+                CAN_TXBE_1_MM(_form_message_marker(&can_mm));
+    /* Write the second word */
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_1.reg = txbe1;
+
     memcpy((void *)dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_DATA, frame->data, frame->can_dlc);
 
     /* Request transmission */
@@ -459,12 +521,14 @@ static int _send(candev_t *candev, const struct can_frame *frame)
 static int16_t _find_filter(can_t *can, const struct can_filter *filter, bool is_std_filter)
 {
     int16_t idx = -1;
-
+    uint32_t msg_id;
     /* Standard filter */
     if (is_std_filter) {
         /* Search for the standard filter in the CAN controller message RAM */
         for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.std_filter); i++) {
-            if (((filter->can_id & CAN_SFF_MASK) == can->msg_ram_conf.std_filter[i].SIDFE_0.bit.SFID1)) {
+            msg_id = ((can->msg_ram_conf.std_filter[i].SIDFE_0.reg &
+                       CAN_SIDFE_0_SFID1_Msk) >> CAN_SIDFE_0_SFID1_Pos);
+            if ((filter->can_id & CAN_SFF_MASK) == msg_id ) {
                 idx = i;
                 break;
             }
@@ -474,7 +538,9 @@ static int16_t _find_filter(can_t *can, const struct can_filter *filter, bool is
     else {
         /* Search for the extended filter in the CAN controller message RAM */
         for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.ext_filter); i++) {
-            if (((filter->can_id & CAN_EFF_MASK) == can->msg_ram_conf.ext_filter[i].XIDFE_0.bit.EFID1)) {
+            msg_id = ((can->msg_ram_conf.ext_filter[i].XIDFE_0.reg &
+                       CAN_XIDFE_0_EFID1_Msk) >> CAN_XIDFE_0_EFID1_Pos);
+            if ((filter->can_id & CAN_EFF_MASK) == msg_id) {
                 idx = i;
                 break;
             }
@@ -489,6 +555,7 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
     can_t *dev = container_of(candev, can_t, candev);
 
     int16_t idx = 0;
+    uint32_t tmp = 0;
     uint8_t filter_conf = 0;
     switch (filter->target_mailbox) {
         case 0:
@@ -511,7 +578,10 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         else {
             /* Find a free slot where to save the filter */
             for (idx = 0; (uint16_t)idx < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); idx++) {
-                if (dev->msg_ram_conf.ext_filter[idx].XIDFE_0.bit.EFEC == CANDEV_SAMD5X_FILTER_DISABLE) {
+                tmp = dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg;
+                if (((tmp & CAN_XIDFE_0_EFEC_Msk) >> CAN_XIDFE_0_EFEC_Pos) ==
+                    CANDEV_SAMD5X_FILTER_DISABLE)
+                {
                     DEBUG_PUTS("empty slot");
                     break;
                 }
@@ -524,14 +594,14 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         }
 
         DEBUG("Extended Filter to add at idx = %d\n", idx);
-        dev->msg_ram_conf.ext_filter[idx].XIDFE_0.bit.EFEC = filter_conf;
+        dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg |= CAN_XIDFE_0_EFEC(filter_conf);
         /* For now, only CLASSIC filters are supported */
-        dev->msg_ram_conf.ext_filter[idx].XIDFE_1.bit.EFT = CANDEV_SAMD5X_CLASSIC_FILTER;
-        dev->msg_ram_conf.ext_filter[idx].XIDFE_0.bit.EFID1 = filter->can_id;
-        dev->msg_ram_conf.ext_filter[idx].XIDFE_1.bit.EFID2 = filter->can_mask & CAN_EFF_MASK;
-        DEBUG("Extended filter element N°%d: F0 = 0x%08lx, F1 = 0x%08lx\n", idx,
-                                    (uint32_t)(dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg),
-                                    (uint32_t)(dev->msg_ram_conf.ext_filter[idx].XIDFE_1.reg));
+        dev->msg_ram_conf.ext_filter[idx].XIDFE_1.reg |= CAN_XIDFE_1_EFT(CANDEV_SAMD5X_CLASSIC_FILTER);
+        dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg |= CAN_XIDFE_0_EFID1(filter->can_id);
+        dev->msg_ram_conf.ext_filter[idx].XIDFE_1.reg |= CAN_XIDFE_1_EFID2(filter->can_mask & CAN_EFF_MASK);
+        DEBUG("Extended filter element N°%d: F0 = 0x%08" PRIx32 ", F1 = 0x%08" PRIx32 "\n",
+              idx, (uint32_t)(dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg),
+              (uint32_t)(dev->msg_ram_conf.ext_filter[idx].XIDFE_1.reg));
         _set_mode(dev->conf->can, MODE_INIT);
         /* Reject all extended frames that are not matching the filters applied */
         dev->conf->can->GFC.reg |= CAN_GFC_ANFE((uint32_t)CAN_REJECT);
@@ -547,7 +617,10 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         else {
             /* Find a free slot where to save the filter */
             for (idx = 0; (uint16_t)idx < ARRAY_SIZE(dev->msg_ram_conf.std_filter); idx++) {
-                if (dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFEC == CANDEV_SAMD5X_FILTER_DISABLE) {
+                tmp = dev->msg_ram_conf.std_filter[idx].SIDFE_0.reg;
+                if (((tmp & CAN_SIDFE_0_SFEC_Msk) >> CAN_SIDFE_0_SFEC_Pos) ==
+                    CANDEV_SAMD5X_FILTER_DISABLE)
+                {
                     DEBUG_PUTS("empty slot");
                     break;
                 }
@@ -560,13 +633,14 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         }
 
         DEBUG("Standard Filter to add at idx = %d\n", idx);
-        dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFEC = filter_conf;
         /* For now, only CLASSIC filters are supported */
-        dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFT = CANDEV_SAMD5X_CLASSIC_FILTER;
-        dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFID1 = filter->can_id & CAN_SFF_MASK;
-        dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFID2 = filter->can_mask & CAN_SFF_MASK;
-        DEBUG("Standard filter element N°%d: S0 = 0x%08lx\n", idx,
-                                    (uint32_t)(dev->msg_ram_conf.std_filter[idx].SIDFE_0.reg));
+        dev->msg_ram_conf.std_filter[idx].SIDFE_0.reg = CAN_SIDFE_0_SFEC(filter_conf)
+                                                      | CAN_SIDFE_0_SFT(CANDEV_SAMD5X_CLASSIC_FILTER)
+                                                      | CAN_SIDFE_0_SFID1(filter->can_id & CAN_SFF_MASK)
+                                                      | CAN_SIDFE_0_SFID2(filter->can_mask & CAN_SFF_MASK);
+
+        DEBUG("Standard filter element N°%d: S0 = 0x%08" PRIx32 "\n",
+              (int)idx, (uint32_t)(dev->msg_ram_conf.std_filter[idx].SIDFE_0.reg));
         _set_mode(dev->conf->can, MODE_INIT);
         /* Reject all standard frames that are not matching the filters applied */
         dev->conf->can->GFC.reg |= CAN_GFC_ANFS((uint32_t)CAN_REJECT);
@@ -585,7 +659,7 @@ static int _remove_filter(candev_t *candev, const struct can_filter *filter)
         idx = _find_filter(dev, filter, false);
         if (idx != -1) {
             DEBUG("Extended filter to disable at idx = %d\n", idx);
-            dev->msg_ram_conf.ext_filter[idx].XIDFE_0.bit.EFEC = CANDEV_SAMD5X_FILTER_DISABLE;
+            dev->msg_ram_conf.ext_filter[idx].XIDFE_0.reg &= ~CAN_XIDFE_0_EFEC_Msk;
         }
         else {
             DEBUG_PUTS("Filter not found");
@@ -596,7 +670,7 @@ static int _remove_filter(candev_t *candev, const struct can_filter *filter)
         idx = _find_filter(dev, filter, true);
         if (idx != -1) {
             DEBUG("Standard filter to disable at idx = %d\n", idx);
-            dev->msg_ram_conf.std_filter[idx].SIDFE_0.bit.SFEC = CANDEV_SAMD5X_FILTER_DISABLE;
+            dev->msg_ram_conf.std_filter[idx].SIDFE_0.reg &= ~CAN_SIDFE_0_SFEC_Msk;
         }
         else {
             DEBUG_PUTS("Filter not found");
@@ -693,7 +767,7 @@ static void _isr(candev_t *candev)
     can_t *dev = container_of(candev, can_t, candev);
 
     uint32_t irq_reg = dev->conf->can->IR.reg;
-    DEBUG("isr: IR reg = 0x%08lx\n", irq_reg);
+    DEBUG("isr: IR reg = 0x%08" PRIx32 "\n", irq_reg);
 
     /* Interrupt triggered due to reception of CAN frame on Rx_FIFO_0 */
     if (irq_reg & CAN_IR_RF0N) {
@@ -703,21 +777,30 @@ static void _isr(candev_t *candev)
 
         uint16_t rx_get_idx = 0;
         uint16_t rx_put_idx = 0;
-        rx_get_idx = (dev->conf->can->RXF0S.reg >> CAN_RXF0S_F0GI_Pos) & 0x3F;
+        uint32_t reg = dev->conf->can->RXF0S.reg;
+        rx_get_idx = (reg >> CAN_RXF0S_F0GI_Pos) & 0x3F;
         DEBUG("rx get index = %u\n", rx_get_idx);
-        rx_put_idx = (dev->conf->can->RXF0S.reg >> CAN_RXF0S_F0PI_Pos) & 0x3F;
+        rx_put_idx = (reg >> CAN_RXF0S_F0PI_Pos) & 0x3F;
         DEBUG("rx put index = %u\n", rx_put_idx);
 
         struct can_frame frame_received = {0};
-        if (!dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_0.bit.XTD) {
+        /* Reuse variable to avoid multiple read of the same register */
+        reg = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_0.reg;
+        if (!(reg & CAN_RXF0E_0_XTD)) {
             DEBUG_PUTS("Received standard CAN frame");
-            frame_received.can_id = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_0.bit.ID >> 18;
+            frame_received.can_id = (reg & CAN_RXF0E_0_ID_Msk) >> 18;
         }
         else {
             DEBUG_PUTS("Received extended CAN frame");
-            frame_received.can_id = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_0.bit.ID;
+            frame_received.can_id = (reg & CAN_RXF0E_0_ID_Msk) | CAN_EFF_FLAG;
         }
-        frame_received.can_dlc = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_1.bit.DLC;
+        if (reg & CAN_RXF0E_0_RTR) {
+            frame_received.can_id |= CAN_RTR_FLAG;
+        }
+
+        frame_received.can_dlc =
+            (dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_1.reg & CAN_RXF0E_1_DLC_Msk) >>
+            CAN_RXF0E_1_DLC_Pos;
         memcpy(frame_received.data, (uint32_t *)dev->msg_ram_conf.rx_fifo_0[rx_get_idx].RXF0E_DATA, frame_received.can_dlc);
 
         dev->conf->can->RXF0A.reg = CAN_RXF0A_F0AI(rx_get_idx);
@@ -734,21 +817,30 @@ static void _isr(candev_t *candev)
 
         uint16_t rx_get_idx = 0;
         uint16_t rx_put_idx = 0;
-        rx_get_idx = (dev->conf->can->RXF1S.reg >> CAN_RXF1S_F1GI_Pos) & 0x3F;
+        uint32_t reg = dev->conf->can->RXF1S.reg;
+        rx_get_idx = (reg >> CAN_RXF1S_F1GI_Pos) & 0x3F;
         DEBUG("rx get index = %u\n", rx_get_idx);
-        rx_put_idx = (dev->conf->can->RXF1S.reg >> CAN_RXF1S_F1PI_Pos) & 0x3F;
+        rx_put_idx = (reg >> CAN_RXF1S_F1PI_Pos) & 0x3F;
         DEBUG("rx put index = %u\n", rx_put_idx);
 
         struct can_frame frame_received = {0};
-        if (!dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_0.bit.XTD) {
+        /* Reuse variable to avoid multiple read of the same register */
+        reg = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_0.reg;
+        if (!(reg & CAN_RXF1E_0_XTD)) {
             DEBUG_PUTS("Received standard CAN frame");
-            frame_received.can_id = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_0.bit.ID >> 18;
+            frame_received.can_id = (reg & CAN_RXF1E_0_ID_Msk) >> 18;
         }
         else {
             DEBUG_PUTS("Received extended CAN frame");
-            frame_received.can_id = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_0.bit.ID;
+            frame_received.can_id = ((reg & CAN_RXF1E_0_ID_Msk) | CAN_EFF_FLAG);
         }
-        frame_received.can_dlc = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_1.bit.DLC;
+        if (reg & CAN_RXF1E_0_RTR) {
+            frame_received.can_id |= CAN_RTR_FLAG;
+        }
+
+        frame_received.can_dlc =
+            (dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_1.reg & CAN_RXF1E_1_DLC_Msk) >>
+            CAN_RXF1E_1_DLC_Pos;
         memcpy(frame_received.data, (uint32_t *)dev->msg_ram_conf.rx_fifo_1[rx_get_idx].RXF1E_DATA, frame_received.can_dlc);
 
         dev->conf->can->RXF1A.reg = CAN_RXF1A_F1AI(rx_get_idx);
@@ -763,6 +855,150 @@ static void _isr(candev_t *candev)
         dev->conf->can->IR.reg |= CAN_IR_TEFN;
         if (dev->candev.event_callback) {
             dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_CONFIRMATION, NULL);
+        }
+    }
+
+    static uint8_t last_error_code = 0;
+    /* Interrupt triggered due to protocol error in data phase */
+    if (irq_reg & CAN_IR_PED) {
+        DEBUG_PUTS("protocol error in data phase");
+        dev->conf->can->IR.reg |= CAN_IR_PED;
+        /* Extract the Tx and Rx error counters */
+        uint32_t reg = dev->conf->can->ECR.reg;
+        uint8_t tx_err_cnt = (uint8_t) (reg & CAN_ECR_TEC_Msk);
+        DEBUG("tx error counter = %u\n", tx_err_cnt);
+        uint8_t rx_err_cnt = (uint8_t)((reg & CAN_ECR_REC_Msk) >> CAN_ECR_REC_Pos);
+        DEBUG("rx error counter = %u\n", rx_err_cnt);
+        /* Check the CAN error type */
+        uint8_t error_code = (uint8_t)(dev->conf->can->PSR.reg & CAN_PSR_LEC_Msk);
+        DEBUG("error code = %u\n", error_code);
+        if (error_code == CANDEV_SAMD5X_NO_CHANGE_ERROR) {
+            error_code = last_error_code;
+        }
+
+        switch (error_code) {
+            case CANDEV_SAMD5X_STUFF_ERROR:
+                DEBUG_PUTS("STUFF error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_FORM_ERROR:
+                DEBUG_PUTS("FORM error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_ACK_ERROR:
+                DEBUG_PUTS("ACK error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_BIT1_ERROR:
+                DEBUG_PUTS("BIT1 error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_BIT0_ERROR:
+                DEBUG_PUTS("BIT0 error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_CRC_ERROR:
+                DEBUG_PUTS("CRC error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            default:
+                break;
+        }
+
+        last_error_code = error_code;
+    }
+
+    /* Interrupt triggered due to protocol error in arbitration phase */
+    if (irq_reg & CAN_IR_PEA) {
+        DEBUG_PUTS("protocol error in arbitration phase");
+        dev->conf->can->IR.reg |= CAN_IR_PEA;
+        /* Extract the Tx and Rx error counters */
+        uint32_t reg = dev->conf->can->ECR.reg;
+        uint8_t tx_err_cnt = (uint8_t) (reg & CAN_ECR_TEC_Msk);
+        DEBUG("tx error counter = %u\n", tx_err_cnt);
+        uint8_t rx_err_cnt = (uint8_t)((reg & CAN_ECR_REC_Msk) >> CAN_ECR_REC_Pos);
+        DEBUG("rx error counter = %u\n", rx_err_cnt);
+        /* Check the CAN error type */
+        uint8_t error_code = (uint8_t)(dev->conf->can->PSR.reg & CAN_PSR_LEC_Msk);
+        DEBUG("error code = %u\n", error_code);
+        if (error_code == CANDEV_SAMD5X_NO_CHANGE_ERROR) {
+            error_code = last_error_code;
+        }
+
+        switch (error_code) {
+            case CANDEV_SAMD5X_STUFF_ERROR:
+                DEBUG_PUTS("STUFF error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_FORM_ERROR:
+                DEBUG_PUTS("FORM error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_ACK_ERROR:
+                DEBUG_PUTS("ACK error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_BIT0_ERROR:
+                DEBUG_PUTS("BIT0 error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_ERROR, NULL);
+                }
+                break;
+            case CANDEV_SAMD5X_CRC_ERROR:
+                DEBUG_PUTS("CRC error");
+                if (dev->candev.event_callback) {
+                    dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_ERROR, NULL);
+                }
+                break;
+            default:
+                break;
+        }
+
+        last_error_code = error_code;
+    }
+
+    /* Interrupt triggered due to Bus_Off status */
+    if (irq_reg & CAN_IR_BO) {
+        DEBUG_PUTS("Bus off");
+        dev->conf->can->IR.reg |= CAN_IR_BO;
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_BUS_OFF, NULL);
+        }
+    }
+
+    /* Interrupt triggered due to Error warning status */
+    if (irq_reg & CAN_IR_EW) {
+        DEBUG_PUTS("Error warning");
+        dev->conf->can->IR.reg |= CAN_IR_EW;
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_ERROR_WARNING, NULL);
+        }
+    }
+
+    /* Interrupt triggered due to Error passive status */
+    if (irq_reg & CAN_IR_EP) {
+        DEBUG_PUTS("Error Passive");
+        dev->conf->can->IR.reg |= CAN_IR_EP;
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_ERROR_PASSIVE, NULL);
         }
     }
 

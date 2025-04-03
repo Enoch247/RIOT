@@ -126,7 +126,7 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     return 0;
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     if (port(pin)->DIR & (1 << pin_num(pin))) {
         return (port(pin)->OUT & (1 << pin_num(pin))) ? 1 : 0;
@@ -151,7 +151,7 @@ void gpio_toggle(gpio_t pin)
     port(pin)->OUT ^= (1 << pin_num(pin));
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         port(pin)->OUTSET = (1 << pin_num(pin));
@@ -203,7 +203,7 @@ int gpio_init_int(gpio_t pin, gpio_mode_t mode, gpio_flank_t flank,
 #endif
                              (flank << GPIOTE_CONFIG_POLARITY_Pos));
     /* enable external interrupt */
-    NRF_GPIOTE->INTENSET |= (GPIOTE_INTENSET_IN0_Msk << _pin_index);
+    NRF_GPIOTE->INTENSET = (GPIOTE_INTENSET_IN0_Msk << _pin_index);
 
     return 0;
 }
@@ -213,7 +213,7 @@ void gpio_irq_enable(gpio_t pin)
     for (unsigned int i = 0; i < _gpiote_next_index; i++) {
         if (_exti_pins[i] == pin) {
             NRF_GPIOTE->CONFIG[i] |= GPIOTE_CONFIG_MODE_Event;
-            NRF_GPIOTE->INTENSET |= (GPIOTE_INTENSET_IN0_Msk << i);
+            NRF_GPIOTE->INTENSET = (GPIOTE_INTENSET_IN0_Msk << i);
             break;
         }
     }

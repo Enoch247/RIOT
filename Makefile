@@ -6,17 +6,11 @@ all: welcome
 	@echo ""
 	@exit 1
 
-doc:
+doc doc-man doc-latex:
 	@./dist/tools/features_yaml2mx/features_yaml2mx.py \
 		features.yaml \
 		--output-md doc/doxygen/src/feature_list.md
-	"$(MAKE)" -BC doc/doxygen
-
-doc-man:
-	"$(MAKE)" -BC doc/doxygen man
-
-doc-latex:
-	"$(MAKE)" -BC doc/doxygen latex
+	"$(MAKE)" -BC doc/doxygen $@
 
 docclean:
 	"$(MAKE)" -BC doc/doxygen clean
@@ -49,7 +43,8 @@ include makefiles/tools/riotgen.inc.mk
 
 include makefiles/color.inc.mk
 
-welcome:
+# Prints a welcome message
+define welcome_message
 	@echo "Welcome to RIOT - The friendly OS for IoT!"
 	@echo ""
 	@echo "You executed 'make' from the base directory."
@@ -68,5 +63,15 @@ welcome:
 	@echo " doc doc-{man,latex}"
 	@echo ""
 	@echo "==> tl;dr Try running:"
-	@echo "    cd examples/default"
+	@echo "    cd examples/basic/default"
 	@echo "    make BOARD=<INSERT_BOARD_NAME>"
+endef
+
+welcome:
+	$(call welcome_message)
+
+.DEFAULT:
+	@echo '*** ERROR: unrecognized target "$@"'
+	@echo ""
+	$(call welcome_message)
+	@exit 1

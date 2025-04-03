@@ -49,7 +49,7 @@ ifneq (,$(filter stm32_eth,$(USEMODULE)))
   FEATURES_REQUIRED += periph_eth
   USEMODULE += iolist
   USEMODULE += netdev_eth
-  USEMODULE += netdev_legacy_api
+  USEMODULE += netdev_new_api
   USEMODULE += ztimer
   USEMODULE += ztimer_msec
 
@@ -78,10 +78,9 @@ ifneq (,$(filter periph_rtc_mem,$(USEMODULE)))
   FEATURES_REQUIRED += periph_rtc
 endif
 
-ifneq (,$(filter periph_adc,$(FEATURES_USED)))
-  ifneq (,$(filter f3 l4 wl, $(CPU_FAM)))
-    USEMODULE += ztimer
-    USEMODULE += ztimer_msec
+ifneq (,$(filter periph_can,$(FEATURES_USED)))
+  ifneq (,$(filter g4,$(CPU_FAM)))
+	USEMODULE += fdcan
   endif
 endif
 

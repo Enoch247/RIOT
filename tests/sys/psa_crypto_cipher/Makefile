@@ -6,10 +6,9 @@ USEMODULE += ztimer_usec
 USEMODULE += psa_crypto
 
 USEMODULE += psa_cipher
+USEMODULE += psa_cipher_chacha20
 USEMODULE += psa_cipher_aes_128_cbc
 
-ifneq (1, $(SHOULD_RUN_KCONFIG))
-  CFLAGS += -DCONFIG_PSA_SINGLE_KEY_COUNT=1
-endif
+CFLAGS += -DCONFIG_PSA_SINGLE_KEY_COUNT=1
 
 include $(RIOTBASE)/Makefile.include

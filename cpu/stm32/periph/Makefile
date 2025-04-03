@@ -17,6 +17,8 @@ ifneq (,$(filter periph_adc,$(USEMODULE)))
     SRC += adc_f4_f7.c
   else ifneq (,$(filter $(CPU_FAM),f0 g0 c0))
     SRC += adc_f0_g0_c0.c
+  else ifneq (,$(filter $(CPU_FAM),l4 wb))
+    SRC += adc_l4_wb.c
   else
     SRC += adc_$(CPU_FAM).c
   endif
@@ -67,6 +69,14 @@ ifneq (,$(filter periph_wdt,$(USEMODULE)))
     since values can deviate up to 50% from reference)
 endif
 
+ifneq (,$(filter periph_can,$(FEATURES_USED)))
+  ifneq (,$(filter g4,$(CPU_FAM)))
+	SRC += fdcan.c
+  else
+	SRC += classiccan.c
+  endif
+endif
+
 # Select the correct implementation for `periph_spi`
 ifneq (,$(filter periph_spi,$(USEMODULE)))
   ifeq (u5,$(CPU_FAM))
@@ -77,4 +87,5 @@ ifneq (,$(filter periph_spi,$(USEMODULE)))
     SRC += spi_all.c
   endif
 endif
+
 include $(RIOTMAKE)/periph.mk

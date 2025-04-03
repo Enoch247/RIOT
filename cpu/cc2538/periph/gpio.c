@@ -122,7 +122,7 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     return 0;
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     return (int)(gpio(pin)->DATA & _pin_mask(pin));
 }
@@ -142,7 +142,7 @@ void gpio_toggle(gpio_t pin)
     gpio(pin)->DATA ^= _pin_mask(pin);
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         gpio(pin)->DATA |= _pin_mask(pin);

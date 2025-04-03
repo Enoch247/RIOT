@@ -13,6 +13,10 @@ BRIDGE_ROUTES=""
 DEFAULT_PREFIX_LEN=128
 UPLINK=""
 
+# doas uses the DOAS_USER variable instead of SUDO_USER. For compatibility with
+# both, we populate SUDO_USER with DOAS_USER, if SUDO_USER is not existing.
+: "${SUDO_USER:="$DOAS_USER"}"
+
 usage() {
     echo "usage: ${PROGRAM} [arguments]" >&2
     echo "" >&2
@@ -59,7 +63,7 @@ unsupported_platform() {
 
 update_uplink() {
     if command -v dhclient > /dev/null; then
-        dhclient $1
+        dhclient -nw $1
     else
         echo "DHCP client \`dhclient\` not found." >&2
         echo "Please reconfigure your DHCP client for interface $1" >&2

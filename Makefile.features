@@ -4,6 +4,9 @@
 # variables in their Makefile.features.
 # This makes them available when setting features based on CPU_MODEL in the cpu
 # Makefile.features and also during dependency resolution.
+#
+# Board features defined by common code in `boards/common` are processed
+# during the dependency resolution, since they depend on the USEMODULE.
 
 # Transition:
 #   Moving 'CPU/CPU_MODEL' to Makefile.features is an ongoing work and may not
@@ -31,3 +34,12 @@ FEATURES_CONFLICT_MSG += "Only one GPIO IRQ implementation can be used."
 FEATURES_CONFLICT += periph_usbdev:tinyusb_device
 FEATURES_CONFLICT += periph_usbdev:tinyusb_host
 FEATURES_CONFLICT_MSG += "Package tinyUSB is not yet compatible with periph_usbdev."
+
+# Features provided implicitly
+ifneq (,$(filter periph_eth,$(FEATURES_PROVIDED)))
+  FEATURES_PROVIDED += netif_ethernet
+endif
+
+ifneq (,$(filter netif_%,$(FEATURES_PROVIDED)))
+  FEATURES_PROVIDED += netif
+endif

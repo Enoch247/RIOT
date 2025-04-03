@@ -3,7 +3,7 @@
 ## General
 
 * Code shall be [C11](http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
-  compliant.
+  compliant, with a list of exceptions detailed below.
 * Avoid dynamic memory allocation (malloc/free, new, etc.)! It will break
   real-time guarantees, increase code complexity, and make it more likely to use
   more memory than available.
@@ -42,6 +42,39 @@
   condition, the usage of preprocessor `#if defined()` is fine.
 * You can use [uncrustify](http://uncrustify.sourceforge.net/) with the provided
   option files: https://github.com/RIOT-OS/RIOT/blob/master/uncrustify-riot.cfg
+
+## Standard Compliance
+
+Using extensions to the C standard in general decreases portability and
+maintainability: The former because porting RIOT to platforms for which limited
+compiler options are available becomes more difficult when compiler-specific
+extensions are used. The latter because extensions are often not as clearly
+defined as standard C, not as well known within the C development community,
+and have fewer resources to look up.
+
+There are a number of cases in which using extensions cannot be avoided, or
+would not be maintainable. For these cases, an exception can be made. A list
+of recognised exceptions where we can (or even must) rely on extensions include:
+
+- Use of `__attribute__((packed))` is allowed for serialization and
+  de-serialization and only there. Ideally, it should not be used in public
+  APIs and types.
+- Code specific to MCU families may use extensions commonly used in this domain,
+  such as inline assembly (e.g. as needed for context swapping), special
+  function attributes (e.g. as needed for IRQ vector entries on some MCUs),
+  etc. Code should still prefer standard compliance when there is no significant
+  downside to it compared to using the extension.
+- `#include_next` may be used when system headers need to be extended.
+- Function attributes for which a wrapper exists in `compiler_hints.h` may be
+  used using that wrapper. These wrappers either unlock additional optimization
+  (such as `NORETURN` or `PURE`) or influence warnings (such as `MAYBE_UNUSED`)
+  produced by the compiler and can simply be replaced by an empty token for
+  compilers that do not support them.
+- `__attribute__((used))`, `__attribute__((section("...")))`,
+  `__attribute__((weak))`, and `__attribute__((alias("...")))`
+  can be used where applicable. Unlike the wrappers in `compiler_hints.h`, we
+  actually require toolchain support for them (an empty-token implementation
+  will not generate correct binaries).
 
 ## Types
 
@@ -162,6 +195,89 @@
 * For complex statements it is always good to use more parentheses - or split up
   the statement and simplify it.
 
+## Indentation of Preprocessor Directives
+
+Add two spaces of indent *after* the `#` per level of indent. Increment the
+indent when entering conditional compilation using `#if`/`#ifdef`/`#ifndef`
+(except for the include guard, which does not add to the indent). Treat indent
+for C language statements and C preprocessor directives independently.
+
+```
+/* BAD: */
+#if XOSC1
+#define XOSC XOSC1
+#define XOSC_NUM 1
+#elif XOSC2
+#define XOSC XSOC2
+#define XOSC_NUM 2
+#endif /* XOSC1/XOSC2 */
+```
+
+```
+/* GOOD: */
+#if XOSC1
+#  define XOSC XOSC1
+#  define XOSC_NUM 1
+#elif XOSC2
+#  define XOSC XSOC2
+#  define XOSC_NUM 2
+#endif
+```
+
+```
+/* BAD: */
+void init_foo(uint32_t param)
+{
+    (void)param;
+    #if HAS_FOO
+    switch (param) {
+    case CASE1:
+        do_foo_init_for_case1;
+        break;
+    #if HAS_CASE_2
+    case CASE2:
+        do_foo_init_for_case2;
+        break;
+        #endif
+    #endif
+}
+```
+
+```
+/* GOOD: */
+void init_foo(uint32_t param)
+{
+    (void)param;
+#if HAS_FOO
+    switch (param) {
+    case CASE1:
+        do_foo_init_for_case1;
+        break;
+#  if HAS_CASE_2
+    case CASE2:
+        do_foo_init_for_case2;
+        break;
+#  endif
+#endif
+}
+```
+
+### Reasoning
+
+Adding the indent does improve readability a lot, more than adding comments.
+Hence, we prefer the indent to allow reviewers to quickly grasp the structure
+of the code.
+
+Adding spaces before the `#` is not in compliance with the C standard (even
+though in practice compilers will be just fine with whitespace in front), but
+adding spaces afterwards is standard compliant. In either case, having the `#`
+at the beginning of the line makes it visually stand out from C statements,
+which eases reading the code.
+
+Using an indent width of 2 makes preprocessor directives visually more
+distinctive from C code, which helps to quickly understand the structure
+of code.
+
 ## Includes
 
 * The include of system headers (in <>-brackets) always precedes RIOT specific
@@ -171,9 +287,27 @@
   statement around includes of optional headers:
 ```c
 #ifdef MODULE_ABC
-#include "abc.h"
+#  include "abc.h"
 #endif
 ```
+
+### Include What You Use (IWYU)
+
+`#include` directives that are not actually needed should be removed to reduce
+clutter and improve compilation speed. Similar: Try to add the corresponding
+`#include`s for all the functions, macros, types, etc. used and do not rely on
+`bar.h` to implicitly include `foo.h`, unless this is documented behavior.
+
+Tools such as [clang's Include Cleaner][clangd-include-cleaner] can help with
+that. These tools may show false positives in cases where headers are *expected*
+to be included indirectly: E.g. if `foo.h` is the public header that contains
+common helpers and implementations, but a per platform `foo_arch.h` is included
+from within `foo.h` for platform specific implementations. If in this scenario
+only functions provided by `foo_arch.h` are included, the `#include` of `foo.h`
+is considered as unused. To avoid this, one should add
+[`/* IWYU pragma: export */`](https://github.com/include-what-you-use/include-what-you-use/blob/master/docs/IWYUPragmas.md) after `#include "foo_arch.h"` in `foo.h`.
+
+[clangd-include-cleaner]: https://clangd.llvm.org/design/include-cleaner
 
 ## Header Guards
 
@@ -351,17 +485,18 @@ not a string literal`.
 
 ## Python coding convention
 
-* Code shall be compliant with Python 3.5 minimum because this is the default
-  Python 3 version in Ubuntu 16.04 (used as the reference system for CI)
+* Code shall be compliant with Python 3.10 at minimum, because this is the
+  default Python 3 version in Ubuntu 22.04 (used as the reference system for
+  CI).
 * Code shall report no error when running the
   [Flake8](http://flake8.pycqa.org/en/latest/) tool, e.g:
     * for style checks described in
-      [PEP8](https://www.python.org/dev/peps/pep-0008/),
+      [PEP 8](https://www.python.org/dev/peps/pep-0008/),
     * for lint checks provided by
       [Pyflakes](https://pypi.python.org/pypi/pyflakes),
     * for complexity checks provided by the
       [McCabe project](https://pypi.python.org/pypi/mccabe)
-* A line length of maximum of 120 is allowed instead of the pep8 79: this
+* A line length of maximum of 120 is allowed instead of 79 as per PEP 8. This
   increases tests readability as they can expects long line of output.
 * Only runnable scripts shall start with `#!/usr/bin/env python3`
 * Runnable scripts shall use the following scheme:

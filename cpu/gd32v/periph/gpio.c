@@ -160,7 +160,7 @@ void gpio_init_analog(gpio_t pin)
     *pin_reg &= ~(0xfl << (4 * (pin_num - ((pin_num >= 8) * 8))));
 }
 
-int gpio_read(gpio_t pin)
+bool gpio_read(gpio_t pin)
 {
     GPIO_Type *port = _port(pin);
     unsigned pin_num = _pin_num(pin);
@@ -195,7 +195,7 @@ void gpio_toggle(gpio_t pin)
     }
 }
 
-void gpio_write(gpio_t pin, int value)
+void gpio_write(gpio_t pin, bool value)
 {
     if (value) {
         gpio_set(pin);

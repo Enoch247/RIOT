@@ -19,6 +19,25 @@
  * there is no expectation of security of the system when an attacker gains
  * access to the shell.
  *
+ * ## Usage
+ *
+ * Enable the `shell` module e.g. by adding the following snippet to your
+ * applications `Makefile`.
+ *
+ * ```
+ * USEMODULE += shell
+ * ```
+ *
+ * And run the shell using @ref shell_run_forever e.g. from the `main` thread
+ * after everything is set up. This call will never return.
+ *
+ * ## Builtin Commands
+ *
+ * The commands `help` and `help_json` are builtins that print the list of
+ * available commands: The former prints a human readable table and is always
+ * available, the latter requires module `shell_builtin_cmd_help_json` to be
+ * used and will give the same info machine readable.
+ *
  * @{
  *
  * @file
@@ -91,7 +110,7 @@ extern "C" {
  *   passing stdin (`isrpipe_t stdin_isrpipe`) does not support backpressure
  *   and overflows silently. As a consequence, commands through such terminals
  *   appear to be truncated at @ref STDIO_RX_BUFSIZE bytes (defaulting to 64)
- *   unless the command is sent in parts (on many terminals, by presing Ctrl-D
+ *   unless the command is sent in parts (on many terminals, by pressing Ctrl-D
  *   half way through the command).
  *
  *   For example, this affects systems with direct USB stdio (@ref
@@ -225,6 +244,33 @@ static inline void shell_run(const shell_command_t *commands,
     shell_run_forever(commands, line_buf, len);
 }
 
+/**
+ * @brief           Parse and run a line of text as a shell command with
+ *                  arguments.
+ *
+ * @param[in]       commands    ptr to array of command structs
+ * @param[in]       line        The input line to parse
+ *
+ * @returns         return value of the found command
+ * @returns         -ENOEXEC if no valid command could be found
+ */
+int shell_handle_input_line(const shell_command_t *commands, char *line);
+
+/**
+ * @brief           Read shell commands from a file and run them.
+ *
+ * @note            This requires the `vfs` module.
+ *
+ * @param[in]       commands    ptr to array of command structs
+ * @param[in]       filename    file to read shell commands from
+ * @param[out]      line_nr     line on which an error occurred, may be NULL
+ *
+ * @returns         0 if all commands were executed successful
+ *                  error return of failed command otherwise
+ */
+int shell_parse_file(const shell_command_t *commands,
+                     const char *filename, unsigned *line_nr);
+
 #ifndef __cplusplus
 /**
  * @brief   Define shell command
@@ -256,15 +302,14 @@ static inline void shell_run(const shell_command_t *commands,
  * ```
  */
 #define SHELL_COMMAND(cmd, help, func) \
-    XFA_USE_CONST(shell_command_xfa_t*, shell_commands_xfa); \
+    XFA_USE_CONST(shell_command_xfa_t, shell_commands_xfa_v2); \
     static FLASH_ATTR const char _xfa_ ## cmd ## _cmd_name[] = #cmd; \
     static FLASH_ATTR const char _xfa_ ## cmd ## _cmd_desc[] = help; \
-    static const shell_command_xfa_t _xfa_ ## cmd ## _cmd = { \
+    XFA_CONST(shell_command_xfa_t, shell_commands_xfa_v2, 0) _xfa_ ## cmd ## _cmd = { \
         .name = _xfa_ ## cmd ## _cmd_name, \
         .desc = _xfa_ ## cmd ## _cmd_desc, \
         .handler = &func \
-    }; \
-    XFA_ADD_PTR(shell_commands_xfa, cmd, cmd, &_xfa_ ## cmd ## _cmd)
+    };
 #endif /* __cplusplus */
 
 #ifdef __cplusplus

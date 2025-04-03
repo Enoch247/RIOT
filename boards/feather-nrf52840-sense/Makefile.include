@@ -1,1 +1,1 @@
-../feather-nrf52840/Makefile.include
+UF2_SOFTDEV ?= SD611

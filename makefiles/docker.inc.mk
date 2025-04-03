@@ -1,6 +1,23 @@
-export DOCKER_IMAGE ?= docker.io/riot/riotbuild:latest
+# This *MUST* be updated in lock-step with the riotbuild image in
+# https://github.com/RIOT-OS/riotdocker. The idea is that when checking out
+# a random RIOT merge commit, `make BUILD_IN_DOCKER=1` should always succeed.
+#
+# When the docker image is updated, checks at
+# dist/tools/buildsystem_sanity_check/check.sh start complaining in CI, and
+# provide the latest values to verify and fill in.
+DOCKER_TESTED_IMAGE_REPO_DIGEST := 0993a39a90e0b573637ea488d51fb33ba1cbeacbfbae4a27cca2091d0873d383
+
+DOCKER_PULL_IDENTIFIER := docker.io/riot/riotbuild@sha256:$(DOCKER_TESTED_IMAGE_REPO_DIGEST)
+export DOCKER_IMAGE ?= $(DOCKER_PULL_IDENTIFIER)
 export DOCKER_BUILD_ROOT ?= /data/riotbuild
 DOCKER_RIOTBASE ?= $(DOCKER_BUILD_ROOT)/riotbase
+
+# These targets need to be run before docker can be run
+DEPS_FOR_RUNNING_DOCKER :=
+
+# Overwrite if you want to use `docker` with sudo
+DOCKER ?= docker
+
 # List of Docker-enabled make goals
 export DOCKER_MAKECMDGOALS_POSSIBLE = \
   all \
@@ -64,6 +81,7 @@ export DOCKER_ENV_VARS += \
   RIOT_CI_BUILD \
   RIOT_VERSION \
   RIOT_VERSION_CODE \
+  RUSTFLAGS \
   SCANBUILD_ARGS \
   SCANBUILD_OUTPUTDIR \
   SIZE \
@@ -115,8 +133,6 @@ DOCKER_OVERRIDE_CMDLINE_AUTO := $(foreach varname,$(DOCKER_ENV_VARS), \
     ))
 DOCKER_OVERRIDE_CMDLINE += $(strip $(DOCKER_OVERRIDE_CMDLINE_AUTO))
 
-# Overwrite if you want to use `docker` with sudo
-DOCKER ?= docker
 _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 
 # Set default run flags:
@@ -126,6 +142,9 @@ _docker_is_podman = $(shell $(DOCKER) --version | grep podman 2>/dev/null)
 DOCKER_USER ?= $$(id -u)
 DOCKER_USER_OPT = $(if $(_docker_is_podman),--userns keep-id,--user $(DOCKER_USER))
 DOCKER_RUN_FLAGS ?= --rm --tty $(DOCKER_USER_OPT)
+
+# Explicitly set the platform to what the image is expecting
+DOCKER_RUN_FLAGS += --platform linux/amd64
 
 # allow setting make args from command line like '-j'
 DOCKER_MAKE_ARGS ?=
@@ -188,7 +207,6 @@ DOCKER_MAKE_ARGS += $(DOCKER_MAKE_JOBS)
 define dir_is_outside_riotbase
 $(filter $(abspath $1)/,$(patsubst $(RIOTBASE)/%,%,$(abspath $1)/))
 endef
-
 
 # Mapping of directores inside docker
 #
@@ -278,6 +296,10 @@ DOCKER_VOLUMES_AND_ENV += -e 'CCACHE_BASEDIR=$(DOCKER_RIOTBASE)'
 
 DOCKER_VOLUMES_AND_ENV += $(call docker_volume_and_env,BUILD_DIR,,build)
 
+# Prevent recursive invocation of docker by explicitely disabling docker via env variable,
+# overwriting potential default in application Makefile
+DOCKER_VOLUMES_AND_ENV += $(call docker_volume_and_env,BUILD_IN_DOCKER,,0)
+
 DOCKER_VOLUMES_AND_ENV += $(call docker_volume_and_env,RIOTPROJECT,,riotproject)
 DOCKER_VOLUMES_AND_ENV += $(call docker_volume_and_env,RIOTCPU,,riotcpu)
 DOCKER_VOLUMES_AND_ENV += $(call docker_volume_and_env,RIOTBOARD,,riotboard)
@@ -345,6 +367,6 @@ docker_run_make = \
 # container.
 # The `flash`, `term`, `debugserver` etc. targets usually require access to
 # hardware which may not be reachable from inside the container.
-..in-docker-container:
+..in-docker-container: $(DEPS_FOR_RUNNING_DOCKER)
 	@$(COLOR_ECHO) '$(COLOR_GREEN)Launching build container using image "$(DOCKER_IMAGE)".$(COLOR_RESET)'
 	$(call docker_run_make,$(DOCKER_MAKECMDGOALS),$(DOCKER_IMAGE),,$(DOCKER_MAKE_ARGS))

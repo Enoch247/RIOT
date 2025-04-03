@@ -6,6 +6,9 @@
  * directory for more details.
  */
 
+#ifndef ENC28J60_H
+#define ENC28J60_H
+
 /**
  * @defgroup    drivers_enc28j60 ENC28J60
  * @ingroup     drivers_netdev
@@ -18,9 +21,6 @@
  *
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
-
-#ifndef ENC28J60_H
-#define ENC28J60_H
 
 #include <stdint.h>
 
@@ -48,7 +48,7 @@ typedef struct {
  */
 typedef struct {
     netdev_t netdev;        /**< pull in the netdev fields */
-    enc28j60_params_t p;    /**< SPI and pin confiuration */
+    enc28j60_params_t p;    /**< SPI and pin configuration */
     mutex_t lock;           /**< lock the device on access */
     uint32_t tx_time;       /**< last transmission time for timeout handling */
 } enc28j60_t;
@@ -67,5 +67,5 @@ void enc28j60_setup(enc28j60_t *dev, const enc28j60_params_t *params, uint8_t in
 }
 #endif
 
-#endif /* ENC28J60_H */
 /** @} */
+#endif /* ENC28J60_H */

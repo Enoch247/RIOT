@@ -8,7 +8,7 @@ else ifneq (,$(filter esp32s2 esp32s3,$(CPU_FAM)))
   CPU_ARCH = xtensa
   CPU_CORE = xtensa-lx7
 else
-  $(error Unkwnown ESP32x SoC variant (family))
+  $(error Unknown ESP32x SoC variant (family): $(CPU_FAM))
 endif
 
 # MCU defined features that are provided independent on board definitions
@@ -26,6 +26,7 @@ FEATURES_PROVIDED += periph_gpio_ll_disconnect
 FEATURES_PROVIDED += periph_gpio_ll_input_pull_down
 FEATURES_PROVIDED += periph_gpio_ll_input_pull_up
 FEATURES_PROVIDED += periph_gpio_ll_irq
+FEATURES_PROVIDED += periph_gpio_ll_irq_edge_triggered_both
 FEATURES_PROVIDED += periph_gpio_ll_irq_level_triggered_high
 FEATURES_PROVIDED += periph_gpio_ll_irq_level_triggered_low
 FEATURES_PROVIDED += periph_gpio_ll_open_drain

@@ -8,6 +8,8 @@ CPU_FAM  = nrf52
 # The 802.15.4 radio is not available on all SoCs
 ifneq (,$(filter nrf52811xxaa nrf52820xxaa nrf52833xxaa nrf52840xxaa,$(CPU_MODEL)))
   FEATURES_PROVIDED += radio_nrf802154
+  # the nrf802154 driver is supported by OpenWSN
+  FEATURES_PROVIDED += netif_openwsn
 endif
 
 # crypto features
@@ -18,6 +20,7 @@ ifneq (,$(filter nrf52840xxaa,$(CPU_MODEL)))
   FEATURES_PROVIDED += periph_hash_sha_512
   FEATURES_PROVIDED += periph_hmac_sha_256
   FEATURES_PROVIDED += periph_cipher_aes_128_cbc
+  FEATURES_PROVIDED += periph_cipher_chacha20
   FEATURES_PROVIDED += periph_ecc_p192r1
   FEATURES_PROVIDED += periph_ecc_p256r1
   FEATURES_PROVIDED += periph_ecc_ed25519

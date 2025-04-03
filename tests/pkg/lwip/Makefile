@@ -18,7 +18,7 @@ ifneq (0, $(LWIP_IPV6))
 endif
 
 # including lwip_ipv6_mld would currently break this test on at86rf2xx radios
-USEMODULE += lwip lwip_netdev
+USEMODULE += lwip
 USEMODULE += lwip_udp
 USEMODULE += lwip_tcp
 USEMODULE += sock_async_event
@@ -33,12 +33,12 @@ USEMODULE += od
 USEMODULE += netdev_default
 USEMODULE += ztimer_usec
 
-ifneq (,$(filter native native64,$(BOARD)))
+ifneq (,$(filter native native32 native64,$(BOARD)))
   USEMODULE += lwip_ethernet
 endif
 
 # Test only implemented for native
-ifeq (,$(filter native native64,$(BOARD)))
+ifeq (,$(filter native native32 native64,$(BOARD)))
   TESTS=
 endif
 

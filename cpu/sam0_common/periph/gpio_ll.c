@@ -45,8 +45,9 @@
 #include "periph/gpio_ll.h"
 
 #ifdef MODULE_FMT
-#include "fmt.h"
+#  include "fmt.h"
 #else
+#  include <stdio.h>
 static inline void print_str(const char *str)
 {
     fputs(str, stdout);
@@ -62,12 +63,12 @@ void gpio_ll_mux(gpio_port_t port, uint8_t pin, gpio_mux_t mux)
 
     unsigned irq_state = irq_disable();
     if (mux == GPIO_MUX_DISABLED) {
-        apb->PINCFG[pin].bit.PMUXEN = 0;
+        apb->PINCFG[pin].reg &= ~PORT_PINCFG_PMUXEN;
     }
     else {
         unsigned pmux_reg = pin >> 1;
         unsigned pmux_pos = (pin & 0x01) << 2;
-        apb->PINCFG[pin].bit.PMUXEN = 1;
+        apb->PINCFG[pin].reg |= PORT_PINCFG_PMUXEN;
         unsigned pmux = apb->PMUX[pmux_reg].reg;
         pmux &= ~(PORT_PMUX_PMUXE_Msk << pmux_pos);
         pmux |= (unsigned)mux << pmux_pos;
@@ -204,7 +205,12 @@ gpio_conf_t gpio_ll_query_conf(gpio_port_t port, uint8_t pin)
         }
     }
 
-    result.initial_value = iobus->OUT.reg & pin_mask;
+    if (result.state == GPIO_INPUT) {
+        result.initial_value = (gpio_ll_read(port) >> pin) & 1UL;
+    }
+    else {
+        result.initial_value = (gpio_ll_read_output(port) >> pin) & 1UL;
+    }
 
     return result;
 }
