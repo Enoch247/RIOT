@@ -21,6 +21,11 @@
  * will use a dedicated `periph_timer` rather than `ztimer` to manage time
  * critical bus operations.
  *
+ * The pseudomodule `soft_onewire_2pins`, when enabled, separates the transmit
+ * and receive functions of the bus into separate pins of the MCU. This is
+ * useful to allow the TX pin to drive a transistor so that greater currents may
+ * be sinked.
+ *
  * @{
  * @file
  * @brief       Soft 1-Wire driver interface
@@ -53,8 +58,13 @@ typedef void (*soft_onewire_timer_cb_t)(soft_onewire_t*);
  * @brief   Soft 1-Wire configuration parameters
  */
 typedef struct {
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_t tx_pin;              /**< GPIO pin for driving the bus */
+    gpio_t rx_pin;              /**< GPIO pin for reading the bus */
+#else
     gpio_t pin;                 /**< GPIO pin the bus is connected to */
     gpio_mode_t pin_imode;      /**< GPIO pin input mode */
+#endif
 #ifdef MODULE_SOFT_ONEWIRE_HWTIMER
     tim_t timer;                /**< peripheral timer that driver should use */
 #endif

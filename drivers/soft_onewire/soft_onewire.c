@@ -58,6 +58,10 @@ static void _write_1_release_cb(soft_onewire_t *dev);
 /* drive the bus high to power any bus powered devices */
 static void _bus_power(soft_onewire_t *dev)
 {
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_t pin = dev->params->tx_pin;
+    gpio_clear(pin);
+#else
     gpio_t pin = dev->params->pin;
 
     /* Re-initializing a GPIO pin is supposed to leave it's set/clear state
@@ -67,31 +71,46 @@ static void _bus_power(soft_onewire_t *dev)
     gpio_set(pin);
     gpio_init(pin, GPIO_OUT);
     gpio_set(pin);
+#endif
 }
 
 /* pull the bus low */
 static void _bus_pull(soft_onewire_t *dev)
 {
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_t pin = dev->params->tx_pin;
+    gpio_set(pin);
+#else
     gpio_t pin = dev->params->pin;
 
     gpio_init(pin, GPIO_OUT);
     gpio_clear(pin);
+#endif
 }
 
 /* release the bus low, allow it to idle high unless another device is holding
    it low */
 static void _bus_release(soft_onewire_t *dev)
 {
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_t pin = dev->params->tx_pin;
+    gpio_clear(pin);
+#else
     gpio_t pin      = dev->params->pin;
     gpio_t pin_mode = dev->params->pin_imode;
 
     gpio_init(pin, pin_mode);
+#endif
 }
 
 /* sample the bus - returns true if the line is high */
 static bool _bus_sample(soft_onewire_t *dev)
 {
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_t pin = dev->params->rx_pin;
+#else
     gpio_t pin = dev->params->pin;
+#endif
 
     return gpio_read(pin);
 }
@@ -327,6 +346,11 @@ static int _init(void *lldev, const void *params)
     }
 #else
     dev->timer.arg = dev;
+#endif
+
+#ifdef MODULE_SOFT_ONEWIRE_2PINS
+    gpio_init(dev->params->rx_pin, GPIO_IN);
+    gpio_init(dev->params->tx_pin, GPIO_OUT);
 #endif
 
     _bus_power(dev);
