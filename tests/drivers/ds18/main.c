@@ -31,6 +31,7 @@
 
 static soft_onewire_params_t soft_onewire_params[] = {
     {
+        .super = { .driver = &soft_onewire_driver },
 #if     defined(BOARD_NATIVE)
         .pin = GPIO_UNDEF,
 #elif   defined(BOARD_STM32F429I_DISC1)
@@ -45,19 +46,9 @@ static soft_onewire_params_t soft_onewire_params[] = {
 
 soft_onewire_t soft_onewire_devs[ARRAY_SIZE(soft_onewire_params)];
 
-static onewire_params_t onewire_params[] = {
-    {
-        .driver = &soft_onewire_driver,
-        .lldev = &soft_onewire_devs[0],
-        .lldev_params = &soft_onewire_params[0],
-    },
-};
-
-onewire_t onewire_buses[ARRAY_SIZE(onewire_params)];
-
 static ds18_params_t ds18_params[] = {
     {
-        .bus = &onewire_buses[0],
+        .bus = &soft_onewire_devs[0].super,
     },
 };
 
@@ -69,7 +60,7 @@ int main(void)
     puts("DS18B20 test application\n");
 
     printf("+------------Initializing------------+\n");
-    result = onewire_init(&onewire_buses[0], &onewire_params[0]);//TODO: check returned
+    soft_onewire_init(&soft_onewire_devs[0], &soft_onewire_params[0]);
     result = ds18_init(&dev, &ds18_params[0]);
     if (result == DS18_ERROR) {
         puts("[Error] The sensor pin could not be initialized");
