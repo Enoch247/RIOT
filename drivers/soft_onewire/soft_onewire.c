@@ -24,6 +24,7 @@
 #include <errno.h>
 
 #include "irq.h"
+#include "macros/units.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
@@ -55,14 +56,26 @@ static void _write_pull_cb(soft_onewire_t *dev);
 static void _write_0_release_cb(soft_onewire_t *dev);
 static void _write_1_release_cb(soft_onewire_t *dev);
 
+/* get pointer to driver instance */
+static soft_onewire_t* _dev(onewire_t *super)
+{
+    return (soft_onewire_t*)super;
+}
+
+/* get pointer to driver params */
+static soft_onewire_params_t* _params(soft_onewire_t *dev)
+{
+    return (soft_onewire_params_t*)dev->super.params;
+}
+
 /* drive the bus high to power any bus powered devices */
 static void _bus_power(soft_onewire_t *dev)
 {
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
-    gpio_t pin = dev->params->tx_pin;
+    gpio_t pin = _params(dev)->tx_pin;
     gpio_clear(pin);
 #else
-    gpio_t pin = dev->params->pin;
+    gpio_t pin = _params(dev)->pin;
 
     /* Re-initializing a GPIO pin is supposed to leave it's set/clear state
        untouched, but not all platforms can guarantee this. So we set the pin
@@ -78,10 +91,10 @@ static void _bus_power(soft_onewire_t *dev)
 static void _bus_pull(soft_onewire_t *dev)
 {
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
-    gpio_t pin = dev->params->tx_pin;
+    gpio_t pin = _params(dev)->tx_pin;
     gpio_set(pin);
 #else
-    gpio_t pin = dev->params->pin;
+    gpio_t pin = _params(dev)->pin;
 
     gpio_init(pin, GPIO_OUT);
     gpio_clear(pin);
@@ -93,11 +106,11 @@ static void _bus_pull(soft_onewire_t *dev)
 static void _bus_release(soft_onewire_t *dev)
 {
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
-    gpio_t pin = dev->params->tx_pin;
+    gpio_t pin = _params(dev)->tx_pin;
     gpio_clear(pin);
 #else
-    gpio_t pin      = dev->params->pin;
-    gpio_t pin_mode = dev->params->pin_imode;
+    gpio_t pin      = _params(dev)->pin;
+    gpio_t pin_mode = _params(dev)->pin_imode;
 
     gpio_init(pin, pin_mode);
 #endif
@@ -107,9 +120,9 @@ static void _bus_release(soft_onewire_t *dev)
 static bool _bus_sample(soft_onewire_t *dev)
 {
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
-    gpio_t pin = dev->params->rx_pin;
+    gpio_t pin = _params(dev)->rx_pin;
 #else
-    gpio_t pin = dev->params->pin;
+    gpio_t pin = _params(dev)->pin;
 #endif
 
     return gpio_read(pin);
@@ -122,7 +135,7 @@ static void _schedule(soft_onewire_t *dev, soft_onewire_timer_cb_t cb,
 #ifdef MODULE_SOFT_ONEWIRE_HWTIMER
     dev->timer_cb = cb;
 
-    tim_t timer = dev->params->timer;
+    tim_t timer = _params(dev)->timer;
     const int res = timer_set(timer, 0, usec);
     if (res < 0)
     {
@@ -162,9 +175,9 @@ static void _reset_finished_cb(soft_onewire_t *dev)
     mutex_unlock(&dev->sync);
 }
 
-static int _reset(void *lldev)
+static int _reset(onewire_t *super)
 {
-    soft_onewire_t *dev = lldev;
+    soft_onewire_t *dev = _dev(super);
 
     DEBUG("soft_onewire: resetting bus\n");
 
@@ -218,9 +231,9 @@ static void _read_sample_cb(soft_onewire_t *dev)
     _schedule(dev, &_read_pull_cb, T_R_END_US);
 }
 
-static int _read(void *lldev, void *buf, size_t len)
+static int _read(onewire_t *super, void *buf, size_t len)
 {
-    soft_onewire_t *dev = lldev;
+    soft_onewire_t *dev = _dev(super);
 
     DEBUG("soft_onewire: begin read bits\n");
 
@@ -285,9 +298,9 @@ static void _write_1_release_cb(soft_onewire_t *dev)
     _schedule(dev, &_write_pull_cb, T_W_1_DELAY_US);
 }
 
-static int _write(void *lldev, const void *buf, size_t len)
+static int _write(onewire_t *super, const void *buf, size_t len)
 {
-    soft_onewire_t *dev = lldev;
+    soft_onewire_t *dev = _dev(super);
 
     DEBUG("soft_onewire: begin write bits\n");
 
@@ -327,40 +340,33 @@ static void _timer_cb(void *arg, int channel)
 }
 #endif
 
-static int _init(void *lldev, const void *params)
+const onewire_driver_t soft_onewire_driver = {
+    .reset = &_reset,
+    .read_bits = &_read,
+    .write_bits = &_write,
+};
+
+void soft_onewire_init(soft_onewire_t *dev, const soft_onewire_params_t *params)
 {
-    assert(lldev);
+    assert(dev);
     assert(params);
 
-    soft_onewire_t *dev = lldev;
-    dev->params = params;
+    _onewire_init(&dev->super, &params->super);
 
-    static mutex_t locked_mutex = MUTEX_INIT_LOCKED;
-    dev->sync = locked_mutex;
+    dev->sync = (mutex_t)MUTEX_INIT_LOCKED;
 
 #ifdef MODULE_SOFT_ONEWIRE_HWTIMER
-    tim_t timer = dev->params->timer;
+    tim_t timer = params->timer;
     const int res = timer_init(timer, MHZ(1), &_timer_cb, dev);
-    if (res < 0) {
-        return -EIO;
-    }
+    assert(res == 0);
 #else
     dev->timer.arg = dev;
 #endif
 
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
-    gpio_init(dev->params->rx_pin, GPIO_IN);
-    gpio_init(dev->params->tx_pin, GPIO_OUT);
+    gpio_init(params->rx_pin, GPIO_IN);
+    gpio_init(params->tx_pin, GPIO_OUT);
 #endif
 
     _bus_power(dev);
-
-    return 0;
 }
-
-const onewire_driver_t soft_onewire_driver = {
-    .init = &_init,
-    .reset = &_reset,
-    .read_bits = &_read,
-    .write_bits = &_write,
-};

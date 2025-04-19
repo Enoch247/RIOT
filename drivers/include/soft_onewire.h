@@ -58,6 +58,7 @@ typedef void (*soft_onewire_timer_cb_t)(soft_onewire_t*);
  * @brief   Soft 1-Wire configuration parameters
  */
 typedef struct {
+    onewire_params_t super;     /**< 1-Wire API params */
 #ifdef MODULE_SOFT_ONEWIRE_2PINS
     gpio_t tx_pin;              /**< GPIO pin for driving the bus */
     gpio_t rx_pin;              /**< GPIO pin for reading the bus */
@@ -74,8 +75,9 @@ typedef struct {
  * @brief   Soft 1-Wire bus device descriptor
  */
 struct soft_onewire_t {
-    /** devices's configuration params */
-    const soft_onewire_params_t *params;
+
+    /**< 1-Wire API instance */
+    onewire_t super;
 
     /** mutext to sync thread with ISRs */
     mutex_t sync;
@@ -106,5 +108,14 @@ struct soft_onewire_t {
 
 /** onewire driver callbacks for soft_onewire implementation */
 extern const onewire_driver_t soft_onewire_driver;
+
+/**
+ * @brief Initialize soft 1-Wire bus
+ *
+ * @param[in] bus       bus descriptor
+ * @param[in] params    configuration parameters
+ */
+void soft_onewire_init(soft_onewire_t *dev,
+    const soft_onewire_params_t *params);
 
 /** @} */
