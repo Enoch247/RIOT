@@ -20,9 +20,9 @@
  * functionality should expose this functionality via this interface so that
  * slave drivers can operate independent of the bus hardware and its driver.
  *
- * The pseudomodule onewire_oneslave, when enabled, permits the assumption that
- * each 1-wire bus instance will only ever have a single slave device connected.
- * This turns calls to acquire and release the bus into noops.
+ * The pseudomodule `onewire_oneslave`, when enabled, permits the assumption
+ * that each 1-wire bus instance will only ever have a single slave device
+ * connected. This turns calls to acquire and release the bus into noops.
  *
  * @see         https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/126.html
  * @see         https://www.maximintegrated.com/en/design/technical-documents/app-notes/7/74.html
