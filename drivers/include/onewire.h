@@ -64,16 +64,8 @@ extern "C" {
  */
 #define ONEWIRE_SEARCH_FIRST    (0)
 
-/**
- * @brief   1-Wire ROM commands
- */
-enum {
-    ONEWIRE_ROM_SEARCH  = 0xf0, /**< search for devices */
-    ONEWIRE_ROM_READ    = 0x33, /**< read ROM code in single device config */
-    ONEWIRE_ROM_MATCH   = 0x55, /**< address a specific slave */
-    ONEWIRE_ROM_SKIP    = 0xcc, /**< broadcast commands to all connected devs */
-    ONEWIRE_ROM_ALARM   = 0xec, /**< search for devices with active alarm */
-};
+/** forward declaration of 1-Wire bus descriptor */
+typedef struct onewire_t onewire_t;
 
 /**
  * @brief   1-Wire ROM code (device address) representation
@@ -86,16 +78,6 @@ typedef struct {
  * @brief   1-Wire bus driver implementation
  */
 typedef struct {
-    /**
-     * @brief   Callback to init the bus driver
-     *
-     * @param[out] lledv    low level bus device descriptor
-     * @param[in] params    low level bus device configuration parameters
-     *
-     * @retval  0 on success
-     * @retval  -EIO on failure
-     */
-    int (*init)(void *lldev, const void *params);
 
     /**
      * @brief   Callback to reset the bus
@@ -103,37 +85,37 @@ typedef struct {
      * When called, the bus driver should perform a bus reset and detect the
      * slave device present pulse.
      *
-     * @param[in] lledv     low level bus device descriptor
+     * @param[in] bus       1-Wire bus descriptor
      *
      * @retval  0 if reset successfully and slave(s) were found
      * @retval  -ENXIO if no slave answered the reset sequence
      * @retval  -EIO on all other failures
      */
-    int (*reset)(void *lldev);
+    int (*reset)(onewire_t *bus);
 
     /**
      * @brief   Callback to transfer bytes from the bus
      *
-     * @param[in] lledv     low level bus device descriptor
+     * @param[in] bus       1-Wire bus descriptor
      * @param[out] buf      buffer to place received bits into
      * @param[in] len       number of bits to transfer
      *
      * @retval  0 on success
      * @retval  -EIO on failure
      */
-    int (*read_bits)(void *lldev, void *buf, size_t len);
+    int (*read_bits)(onewire_t *bus, void *buf, size_t len);
 
     /**
      * @brief   Callback to transfer bytes to the bus
      *
-     * @param[in] lledv     low level bus device descriptor
+     * @param[in] bus       1-Wire bus descriptor
      * @param[in] buf       buffer containing bits to send
      * @param[in] len       number of bits to transfer
      *
      * @retval  0 on success
      * @retval  -EIO on failure
      */
-    int (*write_bits)(void *lldev, const void *buf, size_t len);
+    int (*write_bits)(onewire_t *bus, const void *buf, size_t len);
 
 } onewire_driver_t;
 
@@ -142,30 +124,28 @@ typedef struct {
  */
 typedef struct {
     const onewire_driver_t *driver;     /**< driver for this bus */
-    void *lldev;                        /**< driver instance for this bus */
-    const void *lldev_params;           /**< driver instance's init params */
 } onewire_params_t;
 
 /**
  * @brief   1-Wire bus device descriptor
  */
-typedef struct {
+struct onewire_t {
     const onewire_params_t *params;     /**< bus's configuration params */
 #ifndef MODULE_ONEWIRE_ONESLAVE
     mutex_t lock;                       /**< bus access lock */
 #endif
-} onewire_t;
+};
 
 /**
  * @brief   Initialize a 1-Wire bus
  *
- * @param[out] bus      1-Wire bus descriptor
- * @param[in] params    configuration parameters
+ * @note This is a private function meant to be called by 1-Wire bus driver
+ * implementations.
  *
- * @retval  0 on success
- * @retval  -EIO on failure
+ * @param[in] bus       1-Wire bus descriptor
+ * @param[in] params    configuration parameters
  */
-int onewire_init(onewire_t *bus, const onewire_params_t *params);
+void _onewire_init(onewire_t *bus, const onewire_params_t *params);
 
 /**
  * @brief   Acquire exclusive access to 1-Wire bus
@@ -180,7 +160,7 @@ int onewire_init(onewire_t *bus, const onewire_params_t *params);
  * only a single instance of a slave driver will make use of the bus, then this
  * serialization may be omitted.
  *
- * @param[out] bus      1-Wire bus descriptor
+ * @param[in] bus       1-Wire bus descriptor
  */
 static inline void onewire_aquire(onewire_t *bus)
 {
@@ -197,7 +177,7 @@ static inline void onewire_aquire(onewire_t *bus)
  * This call ends exclusive access to a bus which was previously acquired with a
  * call to @ref onewire_aquire().
  *
- * @param[out] bus      1-Wire bus descriptor
+ * @param[in] bus       1-Wire bus descriptor
  */
 static inline void onewire_release(onewire_t *bus)
 {

@@ -31,12 +31,22 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+/**
+ * @brief   1-Wire ROM commands
+ */
+enum {
+    ONEWIRE_ROM_SEARCH  = 0xf0, /**< search for devices */
+    ONEWIRE_ROM_READ    = 0x33, /**< read ROM code in single device config */
+    ONEWIRE_ROM_MATCH   = 0x55, /**< address a specific slave */
+    ONEWIRE_ROM_SKIP    = 0xcc, /**< broadcast commands to all connected devs */
+    ONEWIRE_ROM_ALARM   = 0xec, /**< search for devices with active alarm */
+};
+
 static int _reset(onewire_t *bus)
 {
     const onewire_driver_t *driver = bus->params->driver;
-    void *lldev = bus->params->lldev;
 
-    const int res = driver->reset(lldev);
+    const int res = driver->reset(bus);
     if (res == -ENXIO) {
         return res;
     }
@@ -50,9 +60,8 @@ static int _reset(onewire_t *bus)
 static int _read_bits(onewire_t *bus, void *buf, size_t len)
 {
     const onewire_driver_t *driver = bus->params->driver;
-    void *lldev = bus->params->lldev;
 
-    const int res = driver->read_bits(lldev, buf, len);
+    const int res = driver->read_bits(bus, buf, len);
     if (res < 0) {
         return -EIO;
     }
@@ -63,9 +72,8 @@ static int _read_bits(onewire_t *bus, void *buf, size_t len)
 static int _write_bits(onewire_t *bus, const void *buf, size_t len)
 {
     const onewire_driver_t *driver = bus->params->driver;
-    void *lldev = bus->params->lldev;
 
-    const int res = driver->write_bits(lldev, buf, len);
+    const int res = driver->write_bits(bus, buf, len);
     if (res < 0) {
         return -EIO;
     }
@@ -257,12 +265,13 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
     return marker;
 }
 
-int onewire_init(onewire_t *bus, const onewire_params_t *params)
+void _onewire_init(onewire_t *bus, const onewire_params_t *params)
 {
+    DEBUG_PUTS(DEBUG_FUNC);
+
     assert(bus);
     assert(params);
     assert(params->driver);
-    assert(params->driver->init);
     assert(params->driver->reset);
     assert(params->driver->read_bits);
     assert(params->driver->write_bits);
@@ -272,8 +281,4 @@ int onewire_init(onewire_t *bus, const onewire_params_t *params)
 #ifndef MODULE_ONEWIRE_ONESLAVE
     mutex_init(&bus->lock);
 #endif
-
-    DEBUG_PUTS(DEBUG_FUNC);
-
-    return params->driver->init(params->lldev, params->lldev_params);
 }
