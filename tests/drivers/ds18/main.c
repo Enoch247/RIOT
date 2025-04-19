@@ -23,10 +23,43 @@
 
 #include "board.h"
 #include "ds18.h"
-#include "ds18_params.h"
+/*#include "ds18_params.h"*/
+#include "soft_onewire.h"
 #include "xtimer.h"
 
 #define SAMPLING_PERIOD     2
+
+static soft_onewire_params_t soft_onewire_params[] = {
+    {
+#if     defined(BOARD_NATIVE)
+        .pin = GPIO_UNDEF,
+#elif   defined(BOARD_STM32F429I_DISC1)
+        .pin = GPIO_PIN(PORT_C, 0),
+#endif
+        .pin_imode = GPIO_IN,
+#ifdef MODULE_SOFT_ONEWIRE_HWTIMER
+        .timer = TIMER_DEV(1),
+#endif
+    },
+};
+
+soft_onewire_t soft_onewire_devs[ARRAY_SIZE(soft_onewire_params)];
+
+static onewire_params_t onewire_params[] = {
+    {
+        .driver = &soft_onewire_driver,
+        .lldev = &soft_onewire_devs[0],
+        .lldev_params = &soft_onewire_params[0],
+    },
+};
+
+onewire_t onewire_buses[ARRAY_SIZE(onewire_params)];
+
+static ds18_params_t ds18_params[] = {
+    {
+        .bus = &onewire_buses[0],
+    },
+};
 
 int main(void)
 {
@@ -36,6 +69,7 @@ int main(void)
     puts("DS18B20 test application\n");
 
     printf("+------------Initializing------------+\n");
+    result = onewire_init(&onewire_buses[0], &onewire_params[0]);//TODO: check returned
     result = ds18_init(&dev, &ds18_params[0]);
     if (result == DS18_ERROR) {
         puts("[Error] The sensor pin could not be initialized");

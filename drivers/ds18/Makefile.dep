@@ -1,2 +1,4 @@
-USEMODULE += xtimer
-FEATURES_REQUIRED += periph_gpio
+USEMODULE += onewire
+#FEATURES_REQUIRED += onewire
+
+#TODO decide on USEMODULE or FEATURES_REQUIRED
