@@ -17,12 +17,15 @@
  * @}
  */
 
+#include <stdio.h>
+
 #include "onewire.h"
 #include "soft_onewire.h"
 #include "tiny_strerror.h"
 
 static soft_onewire_params_t soft_onewire_params[] = {
     {
+        .super = { .driver = &soft_onewire_driver },
 #if     defined(BOARD_NATIVE)
         .pin = GPIO_UNDEF,
 #elif   defined(BOARD_STM32F429I_DISC1)
@@ -30,23 +33,14 @@ static soft_onewire_params_t soft_onewire_params[] = {
 #endif
         .pin_imode = GPIO_IN,
 #ifdef SOFT_ONEWIRE_HWTIMER
-        .timer = TIM_DEV(0),
+        .timer = TIM_DEV(1),
 #endif
     },
 };
 
-soft_onewire_t soft_onewire_devs[ARRAY_SIZE(soft_onewire_params)];
+#define SOFT_ONEWIRE_NUMOF ARRAY_SIZE(soft_onewire_params)
 
-static onewire_params_t onewire_params[] = {
-    {
-        .driver = &soft_onewire_driver,
-        .lldev = &soft_onewire_devs[0],
-        .lldev_params = &soft_onewire_params[0],
-    },
-};
-
-#define ONEWIRE_NUMOF ARRAY_SIZE(onewire_params)
-onewire_t onewire_buses[ARRAY_SIZE(onewire_params)];
+soft_onewire_t soft_onewire_devs[SOFT_ONEWIRE_NUMOF];
 
 static void _enumerate_bus(onewire_t *bus)
 {
@@ -73,9 +67,9 @@ static void _enumerate_bus(onewire_t *bus)
 
 int main(void)
 {
-    for (unsigned i = 0; i < ONEWIRE_NUMOF; i++) {
-        onewire_init(&onewire_buses[i], &onewire_params[i]);
-        _enumerate_bus(&onewire_buses[i]);
+    for (unsigned i = 0; i < SOFT_ONEWIRE_NUMOF; i++) {
+        soft_onewire_init(&soft_onewire_devs[i], &soft_onewire_params[i]);
+        _enumerate_bus(&soft_onewire_devs[i].super);
     }
 
     return 0;
