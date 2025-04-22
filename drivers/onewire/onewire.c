@@ -42,44 +42,24 @@ enum {
     ONEWIRE_ROM_ALARM   = 0xec, /**< search for devices with active alarm */
 };
 
-static int _reset(onewire_t *bus)
+#if MODULE_ONEWIRE_MULTIDRIVER
+
+static int _onewire_reset(onewire_t *bus)
 {
-    const onewire_driver_t *driver = bus->params->driver;
-
-    const int res = driver->reset(bus);
-    if (res == -ENXIO) {
-        return res;
-    }
-    else if (res < 0) {
-        return -EIO;
-    }
-
-    return 0;
+    return bus->params->driver->reset(bus);
 }
 
-static int _read_bits(onewire_t *bus, void *buf, size_t len)
+static int _onewire_read_bits(onewire_t *bus, void *buf, size_t len)
 {
-    const onewire_driver_t *driver = bus->params->driver;
-
-    const int res = driver->read_bits(bus, buf, len);
-    if (res < 0) {
-        return -EIO;
-    }
-
-    return 0;
+    return bus->params->driver->read_bits(bus, buf, len);
 }
 
-static int _write_bits(onewire_t *bus, const void *buf, size_t len)
+static int _onewire_write_bits(onewire_t *bus, const void *buf, size_t len)
 {
-    const onewire_driver_t *driver = bus->params->driver;
-
-    const int res = driver->write_bits(bus, buf, len);
-    if (res < 0) {
-        return -EIO;
-    }
-
-    return 0;
+    return bus->params->driver->write_bits(bus, buf, len);
 }
+
+#endif /* MODULE_ONEWIRE_MULTIDRIVER */
 
 int onewire_select(onewire_t *bus, const onewire_rom_t *rom)
 {
@@ -89,7 +69,7 @@ int onewire_select(onewire_t *bus, const onewire_rom_t *rom)
 
     DEBUG("%s\n", DEBUG_FUNC);
 
-    res = _reset(bus);
+    res = _onewire_reset(bus);
     if (res < 0) {
         return res;
     }
@@ -122,7 +102,7 @@ int onewire_read(onewire_t *bus, void *data, size_t len)
 
     uint8_t *buf = data;
 
-    const int res = _read_bits(bus, data, len * 8);
+    const int res = _onewire_read_bits(bus, data, len * 8);
 
     DEBUG("%s: ", DEBUG_FUNC);
     for (size_t pos = 0; pos < len; pos++) {
@@ -146,7 +126,7 @@ int onewire_write(onewire_t *bus, const void *data, size_t len)
     }
     DEBUG("\n");
 
-    return _write_bits(bus, data, len * 8);
+    return _onewire_write_bits(bus, data, len * 8);
 }
 
 int onewire_read_rom(onewire_t *bus, onewire_rom_t *rom)
@@ -156,7 +136,7 @@ int onewire_read_rom(onewire_t *bus, onewire_rom_t *rom)
 
     int res;
 
-    res = _reset(bus);
+    res = _onewire_reset(bus);
     if (res < 0) {
         return res;
     }
@@ -191,7 +171,7 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
     }
 
     /* Reset the bus. */
-    res = _reset(bus);
+    res = _onewire_reset(bus);
     if (res < 0) {
         return res;
     }
@@ -211,7 +191,7 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         uint8_t bits;
 
         /* Read two bits from the bus. */
-        res = _read_bits(bus, &bits, 2);
+        res = _onewire_read_bits(bus, &bits, 2);
         if (res < 0) {
             return res;
         }
@@ -243,7 +223,7 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         }
 
         /* Send next bit of ROM we wish to match. */
-        res = _write_bits(bus, &bits, 1);
+        res = _onewire_write_bits(bus, &bits, 1);
         if (res < 0) {
             return res;
         }
@@ -271,10 +251,12 @@ void _onewire_init(onewire_t *bus, const onewire_params_t *params)
 
     assert(bus);
     assert(params);
+#if MODULE_ONEWIRE_MULTIDRIVER
     assert(params->driver);
     assert(params->driver->reset);
     assert(params->driver->read_bits);
     assert(params->driver->write_bits);
+#endif
 
     bus->params = params;
 

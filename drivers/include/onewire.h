@@ -123,7 +123,9 @@ typedef struct {
  * @brief   1-Wire configuration parameters
  */
 typedef struct {
+#if MODULE_ONEWIRE_MULTIDRIVER
     const onewire_driver_t *driver;     /**< driver for this bus */
+#endif
 } onewire_params_t;
 
 /**
@@ -131,7 +133,7 @@ typedef struct {
  */
 struct onewire_t {
     const onewire_params_t *params;     /**< bus's configuration params */
-#ifndef MODULE_ONEWIRE_ONESLAVE
+#if !MODULE_ONEWIRE_ONESLAVE
     mutex_t lock;                       /**< bus access lock */
 #endif
 };
@@ -164,7 +166,7 @@ void _onewire_init(onewire_t *bus, const onewire_params_t *params);
  */
 static inline void onewire_aquire(onewire_t *bus)
 {
-#ifdef MODULE_ONEWIRE_ONESLAVE
+#if MODULE_ONEWIRE_ONESLAVE
     (void)bus;
 #else
     mutex_lock(&bus->lock);
@@ -181,7 +183,7 @@ static inline void onewire_aquire(onewire_t *bus)
  */
 static inline void onewire_release(onewire_t *bus)
 {
-#ifdef MODULE_ONEWIRE_ONESLAVE
+#if MODULE_ONEWIRE_ONESLAVE
     (void)bus;
 #else
     mutex_unlock(&bus->lock);
@@ -420,6 +422,16 @@ uint_fast8_t onewire_rom_family_code(const onewire_rom_t *rom);
  * @retval  0 if @p left and @p right are equal
  */
 int onewire_rom_compare(const onewire_rom_t *left, const onewire_rom_t *right);
+
+#if !MODULE_ONEWIRE_MULTIDRIVER || DOXYGEN
+
+int _onewire_reset(onewire_t *super);
+
+int _onewire_read_bits(onewire_t *super, void *buf, size_t len);
+
+int _onewire_write_bits(onewire_t *super, const void *buf, size_t len);
+
+#endif /* !MODULE_ONEWIRE_MULTIDRIVER || DOXYGEN */
 
 #ifdef __cplusplus
 }

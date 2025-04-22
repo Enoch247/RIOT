@@ -59,14 +59,14 @@ typedef void (*soft_onewire_timer_cb_t)(soft_onewire_t*);
  */
 typedef struct {
     onewire_params_t super;     /**< 1-Wire API params */
-#ifdef MODULE_SOFT_ONEWIRE_2PINS
+#if MODULE_SOFT_ONEWIRE_2PINS
     gpio_t tx_pin;              /**< GPIO pin for driving the bus */
     gpio_t rx_pin;              /**< GPIO pin for reading the bus */
 #else
     gpio_t pin;                 /**< GPIO pin the bus is connected to */
     gpio_mode_t pin_imode;      /**< GPIO pin input mode */
 #endif
-#ifdef MODULE_SOFT_ONEWIRE_HWTIMER
+#if MODULE_SOFT_ONEWIRE_HWTIMER
     tim_t timer;                /**< peripheral timer that driver should use */
 #endif
 } soft_onewire_params_t;
@@ -96,7 +96,7 @@ struct soft_onewire_t {
         ISR */
     int buf_size;
 
-#ifdef MODULE_SOFT_ONEWIRE_HWTIMER
+#if MODULE_SOFT_ONEWIRE_HWTIMER
 
     /** pointer to callback of next bus event */
     soft_onewire_timer_cb_t timer_cb;
@@ -117,5 +117,9 @@ extern const onewire_driver_t soft_onewire_driver;
  */
 void soft_onewire_init(soft_onewire_t *dev,
     const soft_onewire_params_t *params);
+
+#ifdef __cplusplus
+}
+#endif
 
 /** @} */
