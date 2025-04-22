@@ -31,7 +31,9 @@
 
 static soft_onewire_params_t soft_onewire_params[] = {
     {
+#ifdef MODULE_ONEWIRE_MULTIDRIVER
         .super = { .driver = &soft_onewire_driver },
+#endif
 #if     defined(BOARD_NATIVE)
         .pin = GPIO_UNDEF,
 #elif   defined(BOARD_STM32F429I_DISC1)

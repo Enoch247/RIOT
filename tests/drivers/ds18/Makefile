@@ -5,6 +5,7 @@ include ../Makefile.drivers_common
 USEMODULE += ds18
 USEMODULE += xtimer
 USEMODULE += printf_float
+#USEMODULE += onewire_multidriver
 USEMODULE += soft_onewire
 USEMODULE += soft_onewire_hwtimer
 # Use the module if you have an accurate sleep with xtimer (~3us)
