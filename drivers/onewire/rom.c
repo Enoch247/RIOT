@@ -30,6 +30,8 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+static_assert(sizeof(onewire_rom_t) == ONEWIRE_ROM_LEN);
+
 int onewire_rom_from_str(onewire_rom_t *rom, const char *str)
 {
     assert(rom);

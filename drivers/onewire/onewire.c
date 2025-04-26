@@ -26,8 +26,6 @@
 #include <errno.h>
 #include <string.h>
 
-#include "bitfield.h"
-
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
@@ -188,6 +186,8 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
     int marker = 0;
     int pos = 1;
     for (unsigned i = 0; i < sizeof(rom->u8) * 8; i++) {
+        const unsigned byte = i / 8;
+        const uint8_t mask = 1 << (i % 8);
         uint8_t bits;
 
         /* Read two bits from the bus. */
@@ -208,7 +208,7 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         const bool conflict = (bits & 3) == 0;
         if (conflict) {
             if (pos < ld) {
-                bits = (bf_isset(rom->u8, i)) ? 1 : 0;
+                bits = (rom->u8[byte] & mask) ? 1 : 0;
                 if (bits == 0) {
                     marker = pos;
                 }
@@ -229,10 +229,10 @@ int onewire_search(onewire_t *bus, onewire_rom_t *rom, int ld)
         }
 
         if (bits & 1) {
-            bf_set(rom->u8, i);
+            rom->u8[byte] |= mask;
         }
         else {
-            bf_unset(rom->u8, i);
+            rom->u8[byte] &= ~mask;
         }
 
         pos++;
