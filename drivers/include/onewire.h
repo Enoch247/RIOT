@@ -10,25 +10,7 @@
 #pragma once
 
 /**
- * @defgroup    drivers_onewire 1-Wire Bus Interface
- * @ingroup     drivers_misc
- * @brief       Generic interface for 1-Wire bus drivers
- *
- * This is RIOT's driver interface for Dallas Semiconductor Corp (now Maxim
- * Integrated) specified 1-Wire Buses. 1-Wire slave device drivers should use it
- * to access the bus (and slave hardware). Drivers implementing 1-Wire bus
- * functionality should expose this functionality via this interface so that
- * slave drivers can operate independent of the bus hardware and its driver.
- *
- * The pseudomodule `onewire_oneslave`, when enabled, permits the assumption
- * that each 1-wire bus instance will only ever have a single slave device
- * connected. This turns calls to acquire and release the bus into noops.
- *
- * @see         https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/126.html
- * @see         https://www.maximintegrated.com/en/design/technical-documents/app-notes/7/74.html
- * @see         https://pdfserv.maximintegrated.com/en/an/AN937.pdf
- * @see         https://www.ti.com/lit/an/spma057c/spma057c.pdf?ts=1598599201996
- *
+ * @addtogroup  drivers_onewire_buses
  * @{
  * @file
  * @brief       1-Wire driver interface
@@ -70,51 +52,23 @@ typedef struct onewire_t onewire_t;
 /**
  * @brief   1-Wire ROM code (device address) representation
  */
-typedef struct {
-    uint8_t u8[ONEWIRE_ROM_LEN];    /**< byte-wise access to address bytes */
-} onewire_rom_t;
+typedef le_uint64_t onewire_rom_t;
 
 /**
  * @brief   1-Wire bus driver implementation
+ *
+ * When `onewire_multidriver` is enabled, each 1-Wire bus driver should expose
+ * its functionality by providing an instance of this structure.
  */
 typedef struct {
 
-    /**
-     * @brief   Callback to reset the bus
-     *
-     * When called, the bus driver should perform a bus reset and detect the
-     * slave device present pulse.
-     *
-     * @param[in] bus       1-Wire bus descriptor
-     *
-     * @retval  0 if reset successfully and slave(s) were found
-     * @retval  -ENXIO if no slave answered the reset sequence
-     * @retval  -EIO on all other failures
-     */
+    /** @copydoc _onewire_reset() */
     int (*reset)(onewire_t *bus);
 
-    /**
-     * @brief   Callback to transfer bytes from the bus
-     *
-     * @param[in] bus       1-Wire bus descriptor
-     * @param[out] buf      buffer to place received bits into
-     * @param[in] len       number of bits to transfer
-     *
-     * @retval  0 on success
-     * @retval  -EIO on failure
-     */
+    /** @copydoc _onewire_read_bits() */
     int (*read_bits)(onewire_t *bus, void *buf, size_t len);
 
-    /**
-     * @brief   Callback to transfer bytes to the bus
-     *
-     * @param[in] bus       1-Wire bus descriptor
-     * @param[in] buf       buffer containing bits to send
-     * @param[in] len       number of bits to transfer
-     *
-     * @retval  0 on success
-     * @retval  -EIO on failure
-     */
+    /** @copydoc _onewire_write_bits() */
     int (*write_bits)(onewire_t *bus, const void *buf, size_t len);
 
 } onewire_driver_t;
@@ -123,7 +77,7 @@ typedef struct {
  * @brief   1-Wire configuration parameters
  */
 typedef struct {
-#if MODULE_ONEWIRE_MULTIDRIVER
+#if MODULE_ONEWIRE_MULTIDRIVER || DOXYGEN
     const onewire_driver_t *driver;     /**< driver for this bus */
 #endif
 } onewire_params_t;
@@ -139,7 +93,7 @@ struct onewire_t {
 };
 
 /**
- * @brief   Initialize a 1-Wire bus
+ * @brief   Initialize a 1-Wire bus base type
  *
  * @note This is a private function meant to be called by 1-Wire bus driver
  * implementations.
@@ -379,6 +333,12 @@ int onewire_rom_from_str(onewire_rom_t *rom, const char *str);
 /**
  * @brief   Write a 1-Wire ROM code to a string
  *
+ * The 64 bit ROM ID will be treated as a string of bytes, rather than a little
+ * endian number. This means the family code will be first, and the CRC will be
+ * at the end. 1-Wire documents refer to the CRC as the MSB and the family code
+ * as the LSB, but printing the ROM as a string of bytes makes sorting ID
+ * strings by family code more convenient.
+ *
  * @param[out] str      Output string, must be able to hold ONEWIRE_ROM_STR_LEN
  *                      characters
  * @param[in] rom       1-Wire ROM code to read
@@ -387,6 +347,9 @@ void onewire_rom_to_str(char *str, const onewire_rom_t *rom);
 
 /**
  * @brief   Print a 1-Wire ROM code to STDIO
+ *
+ * This is equivelant to converting a ROM to a string using @ref
+ * onewire_rom_to_str() and then printing that string.
  *
  * @param[in] rom       1-Wire ROM code
  */
@@ -425,11 +388,53 @@ int onewire_rom_compare(const onewire_rom_t *left, const onewire_rom_t *right);
 
 #if !MODULE_ONEWIRE_MULTIDRIVER || DOXYGEN
 
+/**
+ * @name Single driver mode callbacks
+ *
+ * When `onewire_multidriver` is not enabled, these callbacks must be provided
+ * by the selected 1-Wire bus driver.
+ * @{
+ */
+
+/**
+ * @brief   Callback to reset the bus
+ *
+ * When called, the bus driver should perform a bus reset and detect the slave
+ * device present pulse.
+ *
+ * @param[in] bus       1-Wire bus descriptor
+ *
+ * @retval  0 if reset successfully and slave(s) were found
+ * @retval  -ENXIO if no slave answered the reset sequence
+ * @retval  -EIO on all other failures
+ */
 int _onewire_reset(onewire_t *super);
 
+/**
+ * @brief   Callback to transfer bytes from the bus
+ *
+ * @param[in] bus       1-Wire bus descriptor
+ * @param[out] buf      buffer to place received bits into
+ * @param[in] len       number of bits to transfer
+ *
+ * @retval  0 on success
+ * @retval  -EIO on failure
+ */
 int _onewire_read_bits(onewire_t *super, void *buf, size_t len);
 
+/**
+ * @brief   Callback to transfer bytes to the bus
+ *
+ * @param[in] bus       1-Wire bus descriptor
+ * @param[in] buf       buffer containing bits to send
+ * @param[in] len       number of bits to transfer
+ *
+ * @retval  0 on success
+ * @retval  -EIO on failure
+ */
 int _onewire_write_bits(onewire_t *super, const void *buf, size_t len);
+
+/** @} */
 
 #endif /* !MODULE_ONEWIRE_MULTIDRIVER || DOXYGEN */
 

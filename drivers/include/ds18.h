@@ -11,7 +11,7 @@
 
 /**
  * @defgroup    drivers_ds18 DS18 temperature sensor driver
- * @ingroup     drivers_onewire
+ * @ingroup     drivers_onewire_devs
  * @ingroup     drivers_sensors
  * @ingroup     drivers_saul
  * @brief       Driver interface for the DS18 temperature sensors

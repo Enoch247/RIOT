@@ -10,7 +10,7 @@
 
 /**
  * @defgroup    drivers_soft_onewire Soft 1-Wire Bus Driver
- * @ingroup     drivers_onewire
+ * @ingroup     drivers_onewire_buses
  * @ingroup     drivers_soft_periph
  * @brief       Software implemented 1-Wire bus master
  *
