@@ -205,20 +205,10 @@ int _onewire_reset(onewire_t *super)
 
 static void _read_pull_cb(soft_onewire_t *dev)
 {
-    dev->buf_size--;
-
     /* if all bits have been read */
     if (dev->buf_size == 0) {
         mutex_unlock(&dev->sync);
         return;
-    }
-
-    dev->mask <<= 1;
-
-    if (dev->mask == 0) {
-        dev->mask = 1;
-        dev->rx_buf++;
-        *dev->rx_buf = 0;
     }
 
     _bus_pull(dev);
@@ -234,8 +224,17 @@ static void _read_release_cb(soft_onewire_t *dev)
 static void _read_sample_cb(soft_onewire_t *dev)
 {
     const bool rx_bit = _bus_sample(dev);
-    *dev->rx_buf |= (rx_bit) ? dev->mask : 0;
     _schedule(dev, &_read_pull_cb, T_R_END_US);
+
+    dev->buf_size--;
+
+    const uint8_t mask = 0x01 << (7 - (dev->buf_size % 8));
+    *dev->rx_buf |= (rx_bit) ? mask : 0;
+
+    if (mask == 0x80) {
+        dev->rx_buf++;
+        *dev->rx_buf = 0; /* clear next byte of buffer */
+    }
 }
 
 MAYBE_STATIC

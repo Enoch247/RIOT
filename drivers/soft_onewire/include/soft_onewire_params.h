@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     drivers_soft_onewire
  *
@@ -15,9 +17,6 @@
  *
  * @author      Joshua DeWeese <jdeweese@primecontrols.com>
  */
-
-#ifndef SOFT_ONEWIRE_PARAMS_H
-#define SOFT_ONEWIRE_PARAMS_H
 
 #include "board.h"
 
@@ -65,5 +64,4 @@ static const soft_onewire_params_t soft_onewire_params[] = {
 }
 #endif
 
-#endif /* SOFT_ONEWIRE_PARAMS_H */
 /** @} */

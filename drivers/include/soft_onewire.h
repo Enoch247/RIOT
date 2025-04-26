@@ -96,11 +96,11 @@ struct soft_onewire_t {
         ISR */
     int buf_size;
 
-#if MODULE_SOFT_ONEWIRE_HWTIMER
+#if MODULE_SOFT_ONEWIRE_HWTIMER || DOXYGEN
 
     /** pointer to callback of next bus event */
     soft_onewire_timer_cb_t timer_cb;
-#else
+#elif DOXYGEN
     /** timer used to trigger bus events */
     ztimer_t timer;
 #endif
