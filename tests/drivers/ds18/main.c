@@ -39,7 +39,7 @@ static soft_onewire_params_t soft_onewire_params[] = {
 #elif   defined(BOARD_STM32F429I_DISC1)
         .pin = GPIO_PIN(PORT_C, 0),
 #endif
-        .pin_imode = GPIO_IN,
+        .pin_imode = GPIO_IN_PU,
 #ifdef MODULE_SOFT_ONEWIRE_HWTIMER
         .timer = TIMER_DEV(1),
 #endif
