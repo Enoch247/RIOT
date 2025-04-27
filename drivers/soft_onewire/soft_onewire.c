@@ -246,7 +246,6 @@ int _onewire_read_bits(onewire_t *super, void *buf, size_t len)
 
     dev->rx_buf = buf;
     dev->buf_size = len;
-    dev->mask = 1;
 
     /* Clear first byte of the buffer, because sampling only sets bits. */
     *dev->rx_buf = 0;
@@ -269,28 +268,26 @@ int _onewire_read_bits(onewire_t *super, void *buf, size_t len)
 
 static void _write_pull_cb(soft_onewire_t *dev)
 {
-    dev->buf_size--;
-
     /* if all bits have been written */
     if (dev->buf_size == 0) {
         mutex_unlock(&dev->sync);
         return;
     }
 
-    dev->mask <<= 1;
+    dev->buf_size--;
 
-    if (dev->mask == 0) {
-        dev->mask = 1;
-        dev->tx_buf++;
-    }
-
-    const bool tx_bit = *dev->tx_buf & dev->mask;
+    const uint8_t mask = 0x01 << (7 - (dev->buf_size % 8));
+    const bool tx_bit = *dev->tx_buf & mask;
     const unsigned release_time = (tx_bit) ? T_RW_START_US : T_W_0_HOLD_US;
     const soft_onewire_timer_cb_t release_cb = (tx_bit) ?
         _write_1_release_cb : _write_0_release_cb;
 
     _bus_pull(dev);
     _schedule(dev, release_cb, release_time);
+
+    if (mask == 0x80) {
+        dev->tx_buf++;
+    }
 }
 
 static void _write_0_release_cb(soft_onewire_t *dev)
@@ -313,10 +310,9 @@ int _onewire_write_bits(onewire_t *super, const void *buf, size_t len)
     DEBUG("soft_onewire: begin write bits\n");
 
     dev->tx_buf = buf;
-    dev->buf_size = len;
-    dev->mask = 1;
+    dev->buf_size = len - 1;
 
-    const bool tx_bit = *dev->tx_buf & dev->mask;
+    const bool tx_bit = *dev->tx_buf & 0x01;
     const unsigned release_time = (tx_bit) ? T_RW_START_US : T_W_0_HOLD_US;
     const soft_onewire_timer_cb_t release_cb =
         (tx_bit) ? _write_1_release_cb : _write_0_release_cb;
@@ -332,9 +328,9 @@ int _onewire_write_bits(onewire_t *super, const void *buf, size_t len)
     /* wait for transfer to finish */
     mutex_lock(&dev->sync);
 
-    DEBUG("soft_onewire: data sent (res = %i)\n", dev->buf_size);
+    DEBUG("soft_onewire: data sent (res = %i)\n", len - dev->buf_size);
 
-    return dev->buf_size;
+    return len - dev->buf_size;
 }
 
 #if MODULE_SOFT_ONEWIRE_HWTIMER

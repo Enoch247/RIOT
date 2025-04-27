@@ -76,14 +76,11 @@ typedef struct {
  */
 struct soft_onewire_t {
 
-    /**< 1-Wire API instance */
+    /** 1-Wire API instance */
     onewire_t super;
 
     /** mutext to sync thread with ISRs */
     mutex_t sync;
-
-    /** TODO: rm or doc */
-    uint8_t mask;
 
     /** Pointer to transmit and receive buffers. Only one at a time will be
         used, so they are in a union to save RAM. */
