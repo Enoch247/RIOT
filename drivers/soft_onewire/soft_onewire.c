@@ -204,6 +204,9 @@ static void _read_pull_cb(soft_onewire_t *dev)
 {
     /* if all bits have been read */
     if (dev->buf_size == 0) {
+        if (IS_ACTIVE(MODULE_SOFT_ONEWIRE_PWR)) {
+            _bus_power(dev);
+        }
         mutex_unlock(&dev->sync);
         return;
     }
@@ -267,6 +270,9 @@ static void _write_pull_cb(soft_onewire_t *dev)
 {
     /* if all bits have been written */
     if (dev->buf_size == 0) {
+        if (IS_ACTIVE(MODULE_SOFT_ONEWIRE_PWR)) {
+            _bus_power(dev);
+        }
         mutex_unlock(&dev->sync);
         return;
     }
@@ -371,5 +377,10 @@ void soft_onewire_init(soft_onewire_t *dev, const soft_onewire_params_t *params)
     gpio_init(params->tx_pin, GPIO_OUT);
 #endif
 
-    _bus_power(dev);
+    if (IS_ACTIVE(MODULE_SOFT_ONEWIRE_PWR)) {
+        _bus_power(dev);
+    }
+    else {
+        _bus_release(dev);
+    }
 }

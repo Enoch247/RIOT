@@ -26,6 +26,14 @@
  * useful to allow the TX pin to drive a transistor so that greater currents may
  * be sinked.
  *
+ * If the pseudomodule `soft_onewire_pwr` is enabled, the bus will be driven
+ * high (instead of pulled high via the bus's pullup resistor) whenever the bus
+ * is idle. This helps supply addition current for 1-Wire devices that are
+ * parasitically powered from the bus. Note that if the GPIO pin's output
+ * voltage is lower than the pull up voltage, this may actually draw the bus's
+ * idle voltage down to the pin's voltage, although potentially at a lower
+ * output impedance.
+ *
  * @{
  * @file
  * @brief       Soft 1-Wire driver interface

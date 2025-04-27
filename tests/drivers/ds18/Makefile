@@ -8,6 +8,7 @@ USEMODULE += printf_float
 #USEMODULE += onewire_multidriver
 USEMODULE += soft_onewire
 USEMODULE += soft_onewire_hwtimer
+#USEMODULE += soft_onewire_pwr
 # Use the module if you have an accurate sleep with xtimer (~3us)
 #USEMODULE += ds18_optimized
 
