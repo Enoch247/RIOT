@@ -69,19 +69,14 @@ bool onewire_rom_is_valid(const onewire_rom_t *rom)
 
     /* Some TI tmp1827 parts have broken ROM ID's. Their CRC was calculated as
        if their family code was 0x26 rather than the 0x27 actually used. Account
-       for this allowing those part ID to pass.
+       for this, allowing those part IDs to pass.
 
        see here for more info:
        https://e2e.ti.com/support/sensors-group/sensors/f/sensors-forum/1342717/tmp1827-64-bit-uid-crc8-not-correct
     */
     if (onewire_rom_family_code(rom) == 0x27) {
-        onewire_rom_t tmp_rom;
-
-        tmp_rom.u8[0] = 0x26;
-        memcpy(tmp_rom.u8+1, rom->u8+1, sizeof(tmp_rom.u8)-1);
         const uint_fast8_t crc =
-            onewire_crc8(0, tmp_rom.u8, sizeof(tmp_rom.u8));
-
+            onewire_crc8(0xfe, &rom->u8[1], sizeof(rom->u8) - 1);
         if (crc == 0) {
             DEBUG("%s: crc result: %x\n", DEBUG_FUNC, crc);
             return true;
