@@ -23,11 +23,6 @@ bus masters. Without this enabled, multiple busses are supported, but all
 instances must use the same driver, and therefore be of the same type of
 hardware.
 
-@see https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/126.html
-@see https://www.maximintegrated.com/en/design/technical-documents/app-notes/7/74.html
-@see https://pdfserv.maximintegrated.com/en/an/AN937.pdf
-@see https://www.ti.com/lit/an/spma057c/spma057c.pdf?ts=1598599201996
-
 @defgroup   drivers_onewire_devs 1-Wire Device Drivers
 @ingroup    drivers_onewire
 @brief      1-Wire Slave Device Drivers
