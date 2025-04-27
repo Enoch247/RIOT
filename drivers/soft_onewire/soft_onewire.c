@@ -263,7 +263,7 @@ int _onewire_read_bits(onewire_t *super, void *buf, size_t len)
 
     DEBUG("soft_onewire: got data (res = %i)\n", dev->buf_size);
 
-    return dev->buf_size;
+    return 0;
 }
 
 static void _write_pull_cb(soft_onewire_t *dev)
@@ -330,7 +330,7 @@ int _onewire_write_bits(onewire_t *super, const void *buf, size_t len)
 
     DEBUG("soft_onewire: data sent (res = %i)\n", len - dev->buf_size);
 
-    return len - dev->buf_size;
+    return 0;
 }
 
 #if MODULE_SOFT_ONEWIRE_HWTIMER
