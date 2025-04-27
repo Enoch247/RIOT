@@ -35,13 +35,10 @@
 #  define MAYBE_STATIC
 #endif
 
-//TODO: use bitfield.h for tx/rx buffers?
-
 /* bus timings as given in
  * https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/126.html
  * all in microseconds
  */
- //TODO: better names?
 #define T_RESET_HOLD_US     (480U)
 #define T_RESET_SAMPLE_US   (70U)
 #define T_RESET_RECOVERY_US (410U)
