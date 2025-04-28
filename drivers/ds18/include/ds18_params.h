@@ -50,7 +50,7 @@ static const ds18_params_t ds18_params[] =
 #ifdef DS18_PARAMS_BOARD
     DS18_PARAMS_BOARD,
 #else
-    DS18_PARAMS_DEFAULT,
+    //DS18_PARAMS_DEFAULT,
 #endif
 };
 
