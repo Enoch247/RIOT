@@ -10,6 +10,7 @@
 
 /**
  * @defgroup    drivers_ds18 DS18 temperature sensor driver
+ * @ingroup     drivers_onewire_devs
  * @ingroup     drivers_sensors
  * @ingroup     drivers_saul
  * @brief       Driver interface for the DS18 temperature sensors
@@ -35,11 +36,13 @@
  *              sensors.
  *
  * @author      Frits Kuipers <frits.kuipers@gmail.com>
+ * @author      Joshua DeWeese <josh.deweese@gmail.com>
  */
 
+#include <errno.h>
 #include <stdint.h>
 
-#include "periph/gpio.h"
+#include "onewire.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,26 +50,26 @@ extern "C" {
 
 /**
  * @name ds18 status return codes
+ *
+ * @deprecated will be removed after 2025.07 release TODO: when
  * @{
  */
 #define DS18_OK                       (0)
-#define DS18_ERROR                    (-1)
+#define DS18_ERROR                    (-EIO)
 /** @} */
 
 /**
  * @brief Device initialization parameters
  */
 typedef struct {
-    gpio_t pin;             /**< Pin the sensor is connected to */
-    gpio_mode_t out_mode;   /**< Pin output mode */
-    gpio_mode_t in_mode;    /**< Pin input mode (usually deduced from output mode) */
+    onewire_t *bus;         /**< Bus the sensor is connected to */
 } ds18_params_t;
 
 /**
  * @brief   Device descriptor for a ds18 device
  */
 typedef struct {
-    ds18_params_t params;   /**< Device Parameters */
+    const ds18_params_t *params;   /**< Device Parameters */
 } ds18_t;
 
 /**
@@ -77,7 +80,7 @@ typedef struct {
  *
  *
  * @return                   0 on success
- * @return                  -1 on error
+ * @return                  -EIO on error
  */
 int ds18_init(ds18_t *dev, const ds18_params_t *params);
 
@@ -88,7 +91,7 @@ int ds18_init(ds18_t *dev, const ds18_params_t *params);
  * @param[in] dev           device descriptor
  *
  * @return                  0 on success
- * @return                 -1 on error
+ * @return                 -EIO on error
  */
 int ds18_trigger(const ds18_t *dev);
 
@@ -99,7 +102,7 @@ int ds18_trigger(const ds18_t *dev);
  * @param[out] temperature  buffer to write the temperature in centi-degrees
  *
  * @return                  0 on success
- * @return                 -1 on error
+ * @return                 -EIO on error
  */
 int ds18_read(const ds18_t *dev, int16_t *temperature);
 
@@ -114,7 +117,7 @@ int ds18_read(const ds18_t *dev, int16_t *temperature);
  * @param[out] temperature  buffer to write the temperature in centi-degrees
  *
  * @return                   0 on success
- * @return                  -1 on error
+ * @return                  -EIO on error
  */
 int ds18_get_temperature(const ds18_t *dev, int16_t *temperature);
 
