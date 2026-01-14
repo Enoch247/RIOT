@@ -1,18 +1,14 @@
 #include "ds2433.h"
-#include "ds2433_params.h"
 
 #include <assert.h>
 #include <errno.h>
 
-#include "checksum/ucrc16.h"
 #include "ztimer.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
-//TODO: consolidate these two?
-#define PAGE_SIZE       32 // 32 bytes
-#define SCRATCHPAD_SIZE 32 // 32 bytes
+#define PAGE_SIZE               32 /* bytes */
 
 #define CMD_READ_MEMORY         0xf0
 #define CMD_READ_SCRATCHPAD     0xaa
@@ -34,162 +30,78 @@ static uint16_t _page_to_end_addr(unsigned page)
     return _page_to_addr(page + 1) - 1;
 }
 
-static int _aquire(ds2433_t *dev)
+/**
+ * @brief Read the EEPROM's scratchpad buffer.
+ *
+ * @param[in] dev       pointer to device descriptor
+ * @param[out] buf      buffer to write received bytes into
+ * @param[in] size      number of bytes to read
+ *
+ * @return number of bytes read on success
+ * @retval -ENODEV if no device detected on 1-wire bus
+ * @retval -EIO on all other failures
+ */
+static int _read_scratchpad(ds2433_t *dev, void* buf, size_t size)
 {
-    int res;
     onewire_t *bus = dev->params->bus;
-
-    onewire_aquire(bus);
+    int res;
 
     res = onewire_select(bus, dev->id);
-    if (res == -ENXIO)
-    {
-        return res;
+    if (res == -ENXIO) {
+        return -ENODEV;
     }
-    else if (res < 0)
-    {
+    else if (res < 0) {
         return -EIO;
     }
 
-    return 0;
-}
-
-static int _release_and_return(ds2433_t *dev, int rtnval)
-{
-    onewire_t *bus = dev->params->bus;
-
-    onewire_release(bus);
-
-    return rtnval;
-}
-
-int ds2433_init(ds2433_t *dev, const ds2433_params_t *params,
-    const onewire_rom_t *id)
-{
-    int res;
-    onewire_t *bus = params->bus;
-    onewire_rom_t id_rom;
-
-    assert(dev);
-    assert(params);
-
-/*    if (!dev || !params) {*/
-/*        return -EINVAL;*/
-/*    }*/
-
-    dev->params = params;
-    dev->id = id;
-
-#if 0
-
-    res = _aquire(dev);
-    if (res < 0)
-    {
-        return _release_and_return(dev, res);
+    res = onewire_write_byte(bus, CMD_READ_SCRATCHPAD);
+    if (res < 0) {
+        return -EIO;
     }
 
-    // invalidate the id_rom
-    //TODO: check returned of onewire_read_rom() instead
-    id_rom.u8[0] = ~DS2433_FAMILY_CODE;
-
-    // read the id_rom
-    onewire_read_rom(bus, &id_rom);
-
-    // validate the id_rom
-    if (onewire_rom_family_code(&id_rom) != DS2433_FAMILY_CODE)
-    {
-        return _release_and_return(dev, -ENODEV);
+    res = onewire_read(bus, buf, size);
+    if (res < 0) {
+        return -EIO;
     }
-
-    //TODO: check ROM CRC?
-    //if (onewire_rom_valid(&id_rom)) { }
-
-    //TODO: rm once onewire driver has the ability to run read ROM cmd?
-#if ENABLE_DEBUG
-    char id_str[ONEWIRE_ROM_STR_LEN];
-    onewire_rom_to_str(id_str, &id_rom);
-    DEBUG("%s: ROM ID: %s\n", DEBUG_FUNC, id_str);
-#endif
-
-    return _release_and_return(dev, 0);
-
-#else
-    return 0;
-#endif
-}
-
-int ds2433_read(ds2433_t *dev, uint16_t address, void* buf, size_t size)
-{
-    int res;
-    onewire_t *bus = dev->params->bus;
-
-    //TODO: check address?
-
-    if (address + size > DS2433_EEPROM_SIZE)
-    {
-        //size = DS2433_EEPROM_SIZE - address;
-        return -ERANGE; //TODO: assert instead
-    }
-
-    onewire_aquire(bus);
-
-    res = onewire_select(bus, dev->id);
-    if (res < 0)
-    {
-        onewire_release(bus);
-        return -EIO; //TODO
-    }
-
-    onewire_write_byte(bus, CMD_READ_MEMORY);
-    onewire_write_word(bus, address);
-
-    onewire_read(bus, buf, size);
-
-    onewire_release(bus);
-    return size;
-}
-
-/*static int _read_scratchpad(ds2433_t *dev, uint16_t *address, const void* buf,*/
-/*    size_t size) TODO*/
-static int _read_scratchpad(ds2433_t *dev, void* buf, size_t size)
-{
-    int res;
-    onewire_t *bus = dev->params->bus;
-
-    //TODO: check size param
-
-    res = onewire_select(bus, dev->id);
-    if (res < 0)
-    {
-        onewire_release(bus);
-        return -EIO; //TODO
-    }
-
-    onewire_write_byte(bus, CMD_READ_SCRATCHPAD);
-    onewire_read(bus, buf, size);
 
     return size;
 }
 
-// Note, the address param does not refer to the address in the scratchpad. It
-// referes to the address in the EEPROM, where the scratchpad wil be written
-// when transfered to the EEPROM.
+/**
+ * @brief Write to the EEPROM's scratchpad buffer.
+ *
+ * Writes to the scratchpad are limited to a single EEPROM page. Therefore any
+ * write that crosses a page boundary will be truncated and this will be
+ * reflected in the returned value.
+ *
+ * @note @p address does not refer to an address in the scratchpad. It refers to
+ * the address in the EEPROM, where the scratchpad will be written when it is
+ * transferred to the EEPROM.
+ *
+ * @param[in] dev       pointer to device descriptor
+ * @param[in] address   EEPROM address where the scratchpad will be written
+ * @param[in] buf       data to write
+ * @param[in] size      number of bytes to write
+ *
+ * @return number of bytes written on success
+ * @retval -ENODEV if no device detected on 1-wire bus
+ * @retval -EIO on all other failures
+ */
 static int _write_scratchpad(ds2433_t *dev, uint16_t address, const void* buf,
     size_t size)
 {
-    int res;
     onewire_t *bus = dev->params->bus;
     uint16_t end_address = address + size - 1;
+    int res;
 
-    // the page we will be writing to
+    /* the page we will be writing to */
     const unsigned page = _addr_to_page(address);
 
-    // the highest address within the page we are writing
+    /* the highest address within the page we are writing */
     const unsigned page_end_addr = _page_to_end_addr(page);
 
-    // limit size of write to stay within a single page
-    if (end_address > page_end_addr)
-    {
+    /* limit size of write to stay within a single page */
+    if (end_address > page_end_addr) {
         end_address = page_end_addr;
         size = end_address - address + 1;
     }
@@ -198,26 +110,44 @@ static int _write_scratchpad(ds2433_t *dev, uint16_t address, const void* buf,
         page, address, end_address);
 
     res = onewire_select(bus, dev->id);
-    if (res < 0)
-    {
-        onewire_release(bus);
-        return -EIO; //TODO
+    if (res == -ENXIO) {
+        return -ENODEV;
+    }
+    else if (res < 0) {
+        return -EIO;
     }
 
-    onewire_write_byte(bus, CMD_WRITE_SCRATCHPAD);
-    onewire_write_word(bus, address);
-    onewire_write(bus, buf, size);
+    res = onewire_write_byte(bus, CMD_WRITE_SCRATCHPAD);
+    if (res < 0) {
+        return -EIO;
+    }
 
-    //TODO: re-word
-    // If writing the entire scratchpad, the hardware will make a 16 bit CRC
-    // available to read back. So make use of it when possible.
-    if (end_address == page_end_addr)
-    {
-        uint16_t crc_read = 0, crc_calc = 0;
+    res = onewire_write_word(bus, address);
+    if (res < 0) {
+        return -EIO;
+    }
 
-        onewire_read_word(bus, &crc_read);
-        crc_read = ~crc_read; //TODO
+    res = onewire_write(bus, buf, size);
+    if (res < 0) {
+        return -EIO;
+    }
 
+    /* If we hit the end of the scratchpad, the device makes a CRC available to
+       read back. In that case, lets use it to verify what we sent. */
+    if (end_address == page_end_addr) {
+        uint16_t crc_read = 0;
+        uint16_t crc_calc = 0;
+
+        /* read CRC from device */
+        res = onewire_read_word(bus, &crc_read);
+        if (res < 0) {
+            return -EIO;
+        }
+
+        /* the CRC received is inverted, undo that */
+        crc_read = ~crc_read;
+
+        /* calculate our own CRC */
         uint8_t tmp = CMD_WRITE_SCRATCHPAD;
         crc_calc = onewire_crc16(crc_calc, &tmp, 1);
         tmp = address & 0x00ff;
@@ -228,84 +158,119 @@ static int _write_scratchpad(ds2433_t *dev, uint16_t address, const void* buf,
 
         DEBUG("crc read: 0x%04x crc calculated: 0x%04x\n", crc_read, crc_calc);
 
-        if (crc_read != crc_calc)
-        {
-            return -EIO; //TODO
+        if (crc_read != crc_calc) {
+            return -EIO;
         }
     }
 
     return size;
 }
 
+/**
+ * @brief Commit the scratchpad buffer to EEPROM.
+ *
+ * Copies the contents of the scratchpad buffer to the EEPROM at the EEPROM
+ * address indicated at the time the scratchpad was written to.
+ *
+ * @param[in] dev       pointer to device descriptor
+ *
+ * @retval 0 on success
+ * @retval -ENODEV if no device detected on 1-wire bus
+ * @retval -EIO on all other failures
+ */
 static int _copy_scratchpad(ds2433_t *dev)
 {
-    int res;
     onewire_t *bus = dev->params->bus;
     uint8_t key[3];
+    int res;
 
-    _read_scratchpad(dev, key, sizeof(key));
+    res = _read_scratchpad(dev, key, sizeof(key));
+    if (res < 0) {
+        return res;
+    }
 
     DEBUG("%s: key = 0x%02x%02x%02x\n", DEBUG_FUNC, key[0], key[1], key[2]);
 
     res = onewire_select(bus, dev->id);
-    if (res < 0)
-    {
-        onewire_release(bus);//TODO: rm
-        return -EIO; //TODO
+    if (res == -ENXIO) {
+        return -ENODEV;
+    }
+    else if (res < 0) {
+        return -EIO;
     }
 
-    onewire_write_byte(bus, CMD_COPY_SCRATCHPAD);
-    onewire_write(bus, key, sizeof(key));
+    res = onewire_write_byte(bus, CMD_COPY_SCRATCHPAD);
+    if (res < 0) {
+        return -EIO;
+    }
 
-    // copy takes a maxiumum of 5 msec, durring which the bus must not fall
-    // below 2.8 volts
+    res = onewire_write(bus, key, sizeof(key));
+    if (res < 0) {
+        return -EIO;
+    }
+
+    /* copy takes a maxiumum of 5 msec, durring which the bus must not fall
+       below 2.8 volts */
     ztimer_sleep(ZTIMER_USEC, 5 * 1000);
 
     uint8_t byte = 0;
-    onewire_read_byte(bus, &byte);
-    if (byte != 0x55 && byte != 0xaa)
-    {
-        onewire_release(bus);//TODO: rm
-        return -EIO; //TODO
+    res = onewire_read_byte(bus, &byte);
+    if (res < 0) {
+        return -EIO;
+    }
+    if (byte != 0x55 && byte != 0xaa) {
+        return -EIO;
     }
 
     return 0;
 }
 
-// returns the number of bytes verified
-// TODO: this could be more effeicient if a onewire_verify(...) or
-// onewire_expect(...) were implmented so that we are reading more then single
-// bytes at a time
+/**
+ * @brief Verify data in EEPROM.
+ *
+ * Verify that the contents of the EEPROM match the buffer given.
+ *
+ * @param[in] dev       pointer to device descriptor
+ * @param[in] address   EEPROM address of data to verify
+ * @param[in] buf       data to verify
+ * @param[in] size      number of bytes to verify
+ *
+ * @return the number of bytes read that matched @p buf
+ * @retval -ENODEV if no device detected on 1-wire bus
+ * @retval -EIO on all other failures
+ */
 static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
     size_t size)
 {
-    int res;
     onewire_t *bus = dev->params->bus;
     const uint8_t *data = buf;
-
-/*    //TODO: rm?*/
-/*    if (address + size > DS2433_EEPROM_SIZE)*/
-/*    {*/
-/*        size = DS2433_EEPROM_SIZE - address;*/
-/*    }*/
-
-    //onewire_aquire(bus);
+    int res;
 
     res = onewire_select(bus, dev->id);
-    if (res < 0)
-    {
-        return -EIO; //TODO
+    if (res == -ENXIO) {
+        return -ENODEV;
+    }
+    else if (res < 0) {
+        return -EIO;
     }
 
-    onewire_write_byte(bus, CMD_READ_MEMORY);
-    onewire_write_word(bus, address);
+    res = onewire_write_byte(bus, CMD_READ_MEMORY);
+    if (res < 0) {
+        return -EIO;
+    }
 
-    for (unsigned i = 0; i < size; i++)
-    {
+    res = onewire_write_word(bus, address);
+    if (res < 0) {
+        return -EIO;
+    }
+
+    /* TODO: This could be more efficient if a onewire_verify(...) or
+       onewire_expect(...) were implemented so that we could read more then a
+       single byte at a time, without allocating a large RAM buffer. */
+    for (unsigned i = 0; i < size; i++) {
         uint8_t byte;
         onewire_read_byte(bus, &byte);
-        if (data[i] != byte)
-        {
+        if (data[i] != byte) {
             return i;
         }
     }
@@ -313,44 +278,97 @@ static int _verify(ds2433_t *dev, uint16_t address, const void* buf,
     return size;
 }
 
+int ds2433_read(ds2433_t *dev, uint16_t address, void* buf, size_t size)
+{
+    assert(dev);
+    assert(buf);
+
+    if (address + size > DS2433_EEPROM_SIZE) {
+        return -ERANGE;
+    }
+
+    onewire_t *bus = dev->params->bus;
+    int res;
+
+    onewire_aquire(bus);
+
+    res = onewire_select(bus, dev->id);
+    if (res == -ENXIO) {
+        res = -ENODEV;
+        goto fail;
+    }
+    else if (res < 0) {
+        res = -EIO;
+        goto fail;
+    }
+
+    res = onewire_write_byte(bus, CMD_READ_MEMORY);
+    if (res < 0) {
+        res = -EIO;
+        goto fail;
+    }
+
+    res = onewire_write_word(bus, address);
+    if (res < 0) {
+        res = -EIO;
+        goto fail;
+    }
+
+    res = onewire_read(bus, buf, size);
+    if (res < 0) {
+        res = -EIO;
+        goto fail;
+    }
+
+    onewire_release(bus);
+    return size;
+
+    fail:
+    onewire_release(bus);
+    return res;
+}
+
 int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
 {
-    DEBUG("%s\n", DEBUG_FUNC);
+    assert(dev);
+    assert(buf);
 
-    int res;
+    if (address + size > DS2433_EEPROM_SIZE) {
+        return -ERANGE;
+    }
+
     onewire_t *bus = dev->params->bus;
     const uint8_t *data = buf;
-
-    //TODO: check size param
+    int res;
 
     onewire_aquire(bus);
 
     unsigned offset = 0;
-    while (offset < size)
-    {
-        // fill the scratchpad
+    while (offset < size) {
+
+        /* fill the scratchpad */
         res = _write_scratchpad(dev, address + offset, &data[offset],
             size - offset);
-        if (res < 0)
-        {
-            return -EIO; //TODO
+        if (res < 0) {
+            goto fail;
         }
 
-        int bytes_written = res;
+        const int bytes_written = res;
 
-        // save the scratchpad to EEPROM
+        /* save the scratchpad to EEPROM */
         res = _copy_scratchpad(dev);
-        if (res < 0)
-        {
-            return -EIO; //TODO
+        if (res < 0) {
+            goto fail;
         }
 
-        // verify data just written
+        /* verify data just written */
         res = _verify(dev, address + offset, &data[offset], bytes_written);
-        if (res != bytes_written)
-        {
-            onewire_release(bus);
-            return -EIO; //TODO
+        if (res < 0) {
+            goto fail;
+        }
+        else if (res != bytes_written) {
+            res = -EIO;
+            goto fail;
         }
 
         offset += bytes_written;
@@ -358,14 +376,18 @@ int ds2433_write(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
 
     onewire_release(bus);
     return size;
+
+    fail:
+    onewire_release(bus);
+    return res;
 }
 
 int ds2433_verify(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
 {
     assert(dev);
+    assert(buf);
 
-    if (address + size > DS2433_EEPROM_SIZE)
-    {
+    if (address + size > DS2433_EEPROM_SIZE) {
         return -ERANGE;
     }
 
@@ -376,4 +398,16 @@ int ds2433_verify(ds2433_t *dev, uint16_t address, const void* buf, size_t size)
     onewire_release(bus);
 
     return res;
+}
+
+int ds2433_init(ds2433_t *dev, const ds2433_params_t *params,
+    const onewire_rom_t *id)
+{
+    assert(dev);
+    assert(params);
+
+    dev->params = params;
+    dev->id = id;
+
+    return 0;
 }
